@@ -1,0 +1,21 @@
+{
+  "zoom": 14,
+  "width": 1340,
+  "height": 819,
+  "metresPerPixel": 8.437723292459957,
+  "west": 86.83499336242676,
+  "east": 86.95000648498535,
+  "north": 28.01205855357854,
+  "south": 27.94998053340379,
+  "minHeight": 5137,
+  "maxHeight": 8849,
+  "calibration": {
+    "scale": 1.0101552212375353,
+    "offset": 10.95467345115594
+  },
+  "globalPixelOrigin": [
+    3108853,
+    1756951
+  ],
+  "source": "AWS Terrain Tiles (Terrarium): SRTM and other public DEMs"
+}

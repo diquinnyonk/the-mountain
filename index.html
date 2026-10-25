@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Mountain</title>
+  <meta name="description" content="Climb Mount Everest from Base Camp to the summit on the real terrain, in the real weather of the day you choose." />
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="fx-vignette" class="fx"></div>
+  <div id="fx-headache" class="fx"></div>
+  <div id="fx-glare" class="fx"></div>
+  <div id="fx-fade" class="fx"></div>
+  <div id="bt-labels"></div>
+
+  <div id="hud" hidden>
+    <div id="hud-location" class="panel"></div>
+    <div id="hud-compass"></div>
+    <div id="hud-weather" class="panel"></div>
+    <div id="hud-conditions"></div>
+    <div id="hud-prompt"></div>
+    <div id="hud-alert"></div>
+    <div id="hud-radio" class="panel"></div>
+    <div id="hud-vitals" class="panel"></div>
+    <div id="hud-keys">WASD move · Shift push · E clip/interact · R rest · C camp · [ ] O₂ flow · 1 drink · 2 eat · 3 dex · 4 nifedipine · G goggles · L lamp · Esc menu</div>
+  </div>
+
+  <section id="screen-title" class="screen">
+    <div class="card hero">
+      <p class="eyebrow">Everest · South Col route</p>
+      <h1>The Mountain</h1>
+      <p class="lede">5,364 m to 8,849 m on the real terrain, in the real weather of the day you choose. Acclimatise, read the forecast, turn around on time. Or don't.</p>
+      <div class="buttons">
+        <button id="btn-new" class="primary">New expedition</button>
+        <button id="btn-continue" hidden>Continue</button>
+        <button id="btn-help">How to climb</button>
+      </div>
+      <p class="credits">Terrain: AWS Terrain Tiles (SRTM and other public DEMs). Weather: Open-Meteo (forecast, historical forecasts, ERA5).</p>
+    </div>
+  </section>
+
+  <section id="screen-help" class="screen" hidden>
+    <div class="card wide">
+      <h2>How to climb Everest</h2>
+      <div class="cols">
+        <div>
+          <h3>The route</h3>
+          <p>Base Camp → Khumbu Icefall → Camp 1 → Western Cwm → Camp 2 → Lhotse Face → Camp 3 → Yellow Band &amp; Geneva Spur → South Col (Camp 4) → Balcony → South Summit → Hillary Step → Summit. Then you have to get down.</p>
+          <h3>Acclimatise</h3>
+          <p>Your body adapts to the height you spend time at. Go too high too fast and you will get AMS, then HAPE (fluid in the lungs) or HACE (swelling of the brain). Climb high, sleep low. Use the rotation option at Base Camp, or walk it.</p>
+          <h3>Oxygen</h3>
+          <p>Most climbers use bottled oxygen above Camp 3. <kbd>[</kbd> <kbd>]</kbd> change the flow. 2 L/min makes the summit feel like about 7,450 m. Watch the bottle.</p>
+        </div>
+        <div>
+          <h3>Controls</h3>
+          <p><kbd>W A S D</kbd> walk, drag the mouse to look, scroll to zoom. <kbd>Shift</kbd> push harder (faster, more exhausting). <kbd>E</kbd> clip into fixed ropes, clip ladders, talk/help. <kbd>Space</kbd> self-arrest when you slip. <kbd>R</kbd> rest. <kbd>C</kbd> camp menu at a camp. <kbd>1</kbd> drink, <kbd>2</kbd> eat, <kbd>3</kbd> dexamethasone, <kbd>4</kbd> nifedipine. <kbd>G</kbd> goggles, <kbd>L</kbd> headlamp, <kbd>Esc</kbd> menu (call off the expedition), <kbd>B</kbd> show NPC behaviour trees, <kbd>`</kbd> debug.</p>
+          <h3>Time</h3>
+          <p>Time is compressed while you walk, so a day on the mountain takes minutes. At camps you can rest, sleep, melt snow and wait out weather.</p>
+          <h3>Weather</h3>
+          <p>Past dates replay what the weather really did. The next two weeks use the live forecast. Summit winds above ~60 km/h are lethal. The leader will close the mountain.</p>
+        </div>
+      </div>
+      <div class="buttons"><button class="back primary">Back</button></div>
+    </div>
+  </section>
+
+  <section id="screen-plan" class="screen" hidden>
+    <div class="card wide">
+      <h2>Plan your expedition</h2>
+      <div class="plan-grid">
+        <div>
+          <label for="plan-date">Arrive at Base Camp on</label>
+          <input type="date" id="plan-date" />
+          <div class="chips" id="plan-quick"></div>
+          <label>Style</label>
+          <div class="seg" id="plan-style">
+            <button data-v="full" class="on">Full expedition</button>
+            <button data-v="push">Summit push only</button>
+          </div>
+          <p class="hint" id="plan-style-hint"></p>
+          <label>Support</label>
+          <div class="seg" id="plan-sherpa">
+            <button data-v="yes" class="on">Climb with Pemba Sherpa</button>
+            <button data-v="no">Alone</button>
+          </div>
+          <label>Oxygen stashed at the South Col</label>
+          <div class="seg" id="plan-o2">
+            <button data-v="0">None</button><button data-v="2">2</button><button data-v="3" class="on">3</button><button data-v="4">4</button>
+          </div>
+          <label>Walking pace (time compression)</label>
+          <div class="seg" id="plan-speed">
+            <button data-v="0.8">Slow</button><button data-v="1.1" class="on">Normal</button><button data-v="1.6">Fast</button><button data-v="2.4">Very fast</button>
+          </div>
+        </div>
+        <div>
+          <div id="plan-weather"><p class="hint">Pick a date to load the weather.</p></div>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="back">Back</button>
+        <button id="btn-start" class="primary" disabled>Start at Base Camp</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-loading" class="screen" hidden>
+    <div class="card"><h2 id="loading-title">Loading…</h2><p id="loading-text" class="hint"></p></div>
+  </section>
+
+  <section id="screen-pause" class="screen" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <div class="buttons col">
+        <button id="btn-resume" class="primary">Resume</button>
+        <button id="btn-calloff" class="danger">Call off the expedition</button>
+        <button id="btn-toggle-bt">Show NPC behaviour trees</button>
+        <button id="btn-mute">Mute sound</button>
+        <button id="btn-quit">Save and quit to title</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-camp" class="screen" hidden>
+    <div class="card">
+      <h2 id="camp-title">Camp</h2>
+      <p id="camp-status" class="hint"></p>
+      <div class="buttons col" id="camp-actions"></div>
+      <p id="camp-result" class="result"></p>
+      <div class="buttons"><button id="btn-camp-close" class="primary">Leave the tent</button></div>
+    </div>
+  </section>
+
+  <section id="screen-dialog" class="screen" hidden>
+    <div class="card">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-text"></p>
+      <div class="buttons"><button id="btn-dialog-close" class="primary">OK</button></div>
+    </div>
+  </section>
+
+  <section id="screen-end" class="screen" hidden>
+    <div class="card wide">
+      <p class="eyebrow" id="end-eyebrow"></p>
+      <h2 id="end-title"></h2>
+      <p id="end-text" class="lede"></p>
+      <div id="end-stats" class="stats"></div>
+      <h3>Expedition journal</h3>
+      <ol id="end-journal" class="journal"></ol>
+      <div class="buttons">
+        <button id="btn-retry" class="primary">Try again, same date</button>
+        <button id="btn-newdate">Choose another date</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="debug" hidden></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

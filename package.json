@@ -1,0 +1,28 @@
+{
+  "name": "the-mountain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Climb Mount Everest from Base Camp to the summit, in three.js, with real terrain and real weather.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "smoke": "node tests/smoke.mjs",
+    "bake": "tsx tools/bake-terrain.ts"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/pngjs": "6.0.5",
+    "@types/three": "0.170.0",
+    "pngjs": "7.0.0",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vite": "6.0.7",
+    "vitest": "2.1.8"
+  }
+}
