@@ -18,6 +18,7 @@ import { formatLocalTime } from './core/clock';
 import { HOUR } from './core/clock';
 import type { WeatherSample } from './weather/model';
 import { BOTTLE_LITRES } from './player/gear';
+import { TouchControls, isTouchDevice, touchPrompt } from './ui/touch';
 
 type Mode = 'menu' | 'play' | 'pause' | 'camp' | 'dialog' | 'end';
 
@@ -52,10 +53,14 @@ export class Game {
   private titleAngle = 0;
   private lastSettings: { s: ExpeditionSettings; w: WeatherLoad } | null = null;
   ready = false;
+  readonly touch: TouchControls | null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+    const touch = isTouchDevice();
+    // Phones and tablets get a lighter renderer.
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.25 : 1.75));
+    if (touch) this.sky.sun.shadow.mapSize.set(1024, 1024);
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -65,6 +70,7 @@ export class Game {
     this.scene.fog = this.sky.fog;
     this.scene.add(this.sky.group, this.snow.points);
     this.input = new Input(canvas);
+    this.touch = touch ? new TouchControls(this.input, canvas) : null;
     this.debug = new DebugPanel(this.debugActions());
     addEventListener('resize', () => {
       this.renderer.setSize(innerWidth, innerHeight, false);
@@ -81,7 +87,7 @@ export class Game {
     this.terrain = await loadTerrain(import.meta.env.BASE_URL + 'terrain/');
     this.route = new Route(this.terrain);
     this.layout = buildLayout(this.route);
-    this.terrainMesh = new TerrainMesh(this.terrain);
+    this.terrainMesh = new TerrainMesh(this.terrain, this.touch ? 0.6 : 1);
     this.scene.add(this.terrainMesh.group);
     this.features = new Features(this.route, this.layout);
     this.scene.add(this.features.group);
@@ -288,6 +294,13 @@ export class Game {
       this.closeCamp();
     }
 
+    if (this.touch) {
+      this.touch.show(!!exp && this.mode === 'play');
+      if (exp && this.mode === 'play') {
+        const kind = exp.contextAction();
+        this.touch.setAction(kind, kind === 'ladder' ? (exp.player.ladderClipped ? 'Unclip line' : 'Clip line') : undefined);
+      }
+    }
     let weather = CALM;
     let focus = this.camera.position;
     let timeRate = 1;
@@ -324,7 +337,8 @@ export class Game {
       const bearing = (Math.atan2(ahead.x - p.pos.x, -(ahead.z - p.pos.z)) * 180) / Math.PI;
       this.hud.update(dt, {
         now: exp.clock.time, altitude: p.altitude, place: exp.placeLabel(), section: sectionAt(this.layout, p.s).name,
-        timeRate, weather, physiology: p.physiology, effects: p.effects, gear: p.gear, prompt: exp.contextPrompt(),
+        timeRate, weather, physiology: p.physiology, effects: p.effects, gear: p.gear,
+        prompt: this.touch ? touchPrompt(exp.contextPrompt()) : exp.contextPrompt(),
         alert: p.alert, clipped: p.clipped, cameraYaw: exp.follow.yaw, routeBearing: (bearing + 360) % 360,
         daylight: this.sky.daylight, dexActive: p.meds.dexUntil > exp.clock.time, nifActive: p.meds.nifedipineUntil > exp.clock.time,
         radio: exp.radioLog,

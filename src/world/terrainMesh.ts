@@ -59,7 +59,7 @@ export class TerrainMesh {
   private chunks: Chunk[] = [];
   private queue: Chunk[] = [];
 
-  constructor(private terrain: Terrain) {
+  constructor(private terrain: Terrain, private lodScale = 1) {
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, shadowSide: THREE.FrontSide });
     const nx = Math.ceil(terrain.width / CHUNK_PX), nz = Math.ceil(terrain.height / CHUNK_PX);
     for (let cj = 0; cj < nz; cj++) {
@@ -100,7 +100,7 @@ export class TerrainMesh {
     const half = (CHUNK_PX * this.terrain.mpp) / 2;
     const dx = Math.max(0, Math.abs(cam.x - c.centre.x) - half);
     const dz = Math.max(0, Math.abs(cam.z - c.centre.z) - half);
-    const d = Math.hypot(dx, dz, (cam.y - c.centre.y) * 0.5);
+    const d = Math.hypot(dx, dz, (cam.y - c.centre.y) * 0.5) / this.lodScale;
     return LODS.findIndex((l) => d < l.maxDist);
   }
 

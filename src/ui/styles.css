@@ -124,3 +124,43 @@ label { display: block; margin: 14px 0 6px; color: var(--muted); font-size: 12px
 #camp-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 #camp-actions button { padding: 8px 12px; font-size: 13px; }
 @media (max-width: 640px) { #camp-actions { grid-template-columns: 1fr; } }
+
+/* Touch controls and the compact phone HUD */
+#touch { position: fixed; inset: 0; z-index: 12; pointer-events: none; }
+#touch .tbtn { pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; background: rgba(10, 14, 22, 0.55); border: 1px solid rgba(255, 255, 255, 0.22); color: var(--text); border-radius: 99px; font-weight: 600; backdrop-filter: blur(6px); }
+#touch .tbtn.down { background: rgba(255, 138, 42, 0.45); }
+#touch .tbtn:disabled { opacity: 0.35; }
+#touch .menu { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: 44px; height: 44px; padding: 0; font-size: 20px; }
+#touch .cluster { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: auto auto; grid-template-areas: 'pack action' 'rest action' 'push action'; gap: 8px; align-items: center; }
+#touch .cluster [data-toggle-pack] { grid-area: pack; }
+#touch .cluster [data-tap='KeyR'] { grid-area: rest; }
+#touch .cluster .push { grid-area: push; }
+#touch .small { padding: 10px 14px; font-size: 13px; min-width: 64px; }
+#touch .action { grid-area: action; width: 92px; height: 92px; padding: 0; font-size: 15px; background: rgba(255, 138, 42, 0.3); border-color: var(--accent); }
+#touch .action.urgent { background: var(--bad); border-color: #fff; animation: pulse 0.5s infinite alternate; }
+@keyframes pulse { to { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { #touch .action.urgent { animation: none; } }
+#touch .pack { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(3, auto); gap: 6px; pointer-events: auto; }
+#touch .stick { position: absolute; left: 24%; top: calc(100% - 90px - env(safe-area-inset-bottom, 0px)); width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); background: rgba(10, 14, 22, 0.25); opacity: 0.45; transition: opacity 0.2s; }
+#touch .stick.active { opacity: 1; transition: none; }
+#touch .knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); }
+body.touch canvas#scene { touch-action: none; }
+body.touch #hud-keys { display: none; }
+body.touch #hud-compass { display: none; }
+body.touch #hud-location { left: calc(10px + env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); min-width: 0; padding: 7px 9px; }
+body.touch #hud-location .alt { font-size: 22px; }
+body.touch #hud-weather { left: calc(10px + env(safe-area-inset-left, 0px)); right: auto; top: calc(108px + env(safe-area-inset-top, 0px)); min-width: 0; text-align: left; font-size: 11px; padding: 6px 9px; }
+body.touch #hud-weather .big { font-size: 15px; }
+body.touch #hud-vitals { right: calc(10px + env(safe-area-inset-right, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); bottom: auto; width: 178px; font-size: 10.5px; padding: 7px 9px; }
+body.touch .bar { grid-template-columns: 58px 1fr 38px; gap: 5px; margin: 2px 0; }
+body.touch #hud-conditions { right: calc(10px + env(safe-area-inset-right, 0px)); top: calc(196px + env(safe-area-inset-top, 0px)); }
+body.touch .cond { font-size: 10.5px; }
+body.touch #hud-radio { left: calc(10px + env(safe-area-inset-left, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); width: auto; bottom: calc(180px + env(safe-area-inset-bottom, 0px)); max-height: 64px; font-size: 11px; padding: 6px 9px; }
+body.touch #hud-prompt { bottom: calc(252px + env(safe-area-inset-bottom, 0px)); white-space: normal; text-align: center; max-width: calc(100vw - 32px); font-size: 13px; }
+body.touch #hud-alert { font-size: 19px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  body.touch #hud-radio { left: 30%; right: 30%; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  body.touch #hud-prompt { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+  body.touch #hud-weather { top: calc(96px + env(safe-area-inset-top, 0px)); }
+  #touch .pack { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); right: calc(200px + env(safe-area-inset-right, 0px)); }
+}

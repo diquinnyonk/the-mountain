@@ -7,6 +7,9 @@ export class Input {
   wheel = 0;
   dragging = false;
   enabled = true;
+  /** Analog movement from the touch joystick, -1..1 (x right, y down). */
+  moveX = 0;
+  moveY = 0;
 
   constructor(el: HTMLElement) {
     addEventListener('keydown', (e) => {
@@ -61,5 +64,10 @@ export class Input {
     if (held) this.down.add(code);
     else this.down.delete(code);
     this.pressed.add(code);
+  }
+
+  /** Let go of a key held by press(). */
+  release(code: string) {
+    this.down.delete(code);
   }
 }

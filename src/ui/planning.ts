@@ -67,7 +67,7 @@ export class PlanningScreen {
 
   private updateStyleHint() {
     $('plan-style-hint').textContent = this.style() === 'full'
-      ? 'You arrive at Base Camp acclimatised to about 4,900 m from the trek in. You will need rotations before a summit push.'
+      ? 'You arrive at Base Camp acclimatised to about 5,100 m from the trek in. You will need rotations before a summit push.'
       : 'Five weeks of rotations are behind you: acclimatised to about 7,000 m, and a little worn down.';
   }
 

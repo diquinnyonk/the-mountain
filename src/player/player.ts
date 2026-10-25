@@ -141,6 +141,11 @@ export class Player {
     const input = ctx.input;
     let f = (input.isDown('KeyW') || input.isDown('ArrowUp') ? 1 : 0) - (input.isDown('KeyS') || input.isDown('ArrowDown') ? 1 : 0);
     let r = (input.isDown('KeyD') ? 1 : 0) - (input.isDown('KeyA') ? 1 : 0);
+    // Touch joystick (analog) when no keys are held.
+    if (f === 0 && r === 0 && input.enabled) {
+      f = -input.moveY;
+      r = input.moveX;
+    }
     // Confusion: delayed and occasionally swapped controls.
     this.inputHistory.push({ t: this.realTime, f, r });
     while (this.inputHistory.length > 2 && this.inputHistory[1].t < this.realTime - this.effects.inputLag) this.inputHistory.shift();

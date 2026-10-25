@@ -20,6 +20,7 @@ import type { DeathCause } from './sim/physiology';
 import type { AudioEngine } from './audio/audio';
 import type { RadioMessage } from './ui/hud';
 import type { ExpeditionSettings } from './ui/planning';
+import type { ActionKind } from './ui/touch';
 import { GameClock, HOUR, formatLocalDate, formatLocalTime, localMidnightUtc } from './core/clock';
 import { Rng } from './core/rng';
 import { clamp, lerp } from './core/mathx';
@@ -814,6 +815,20 @@ export class Expedition {
       out.push(`Rotation complete. You are acclimatised to about ${Math.round(this.player.physiology.acclimAlt).toLocaleString()} m.`);
     }
     return out.join(' ');
+  }
+
+  /** What the touch Action button should do right now. */
+  contextAction(): ActionKind {
+    const p = this.player;
+    if (p.mode === 'slip') return 'arrest';
+    if (p.mode === 'ladder') return 'ladder';
+    if (p.mode !== 'walk' && p.mode !== 'rest') return null;
+    if (this.director.doctor.pos.distanceTo(p.pos) < 6) return 'talk';
+    if (this.world.npcs.some((n) => n.needsHelp && !n.dead && n.pos.distanceTo(p.pos) < 5)) return 'help';
+    if (p.clipped) return 'unclip';
+    if (p.canClip(this.world.ropeFixedTo) && p.hit.distance < 3) return 'clip';
+    if (this.campHere()) return 'camp';
+    return null;
   }
 
   /** Context prompt when the player isn't already being told something. */
