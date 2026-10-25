@@ -201,6 +201,7 @@ export class Expedition {
   }
 
   private receive(kind: 'o2' | 'dex' | 'nifedipine' | 'tea', from: Npc) {
+    if (this.player.dead) return;
     const g = this.player.gear;
     if (kind === 'o2') {
       g.bottles++;
