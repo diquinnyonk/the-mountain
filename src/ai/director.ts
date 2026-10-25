@@ -51,6 +51,8 @@ export class Director {
   private ropeTeam!: Npc;
   readonly ropeFront: { s: number };
   private models = new Map<string, ClimberModel>();
+  /** Last rendered position and smoothed on-screen speed, so strides match real movement. */
+  private motion = new Map<string, { last: THREE.Vector3; speed: number }>();
   private rng: Rng;
   private aiAccum = 0;
 
@@ -187,9 +189,10 @@ export class Director {
         w.log(`${n.name} (${n.team}) died at ${Math.round(n.altitude).toLocaleString()} m: ${n.physiology.dead}.`);
         if (n.role !== 'leader' && n.role !== 'doctor') w.radio('Base Camp', `Terrible news. ${n.name} of ${n.team} has died near ${Math.round(n.altitude).toLocaleString()} m.`, 'alert');
       }
-      const near = Math.abs(n.s - w.player.s) < 600;
+      // Anyone near the player thinks every frame so they move smoothly; distant climbers less often.
+      const near = Math.abs(n.s - w.player.s) < 250;
       n.btAccum += dt;
-      const interval = near ? 1 : 20;
+      const interval = near ? 0 : 20;
       if (n.btAccum >= interval) {
         n.bt.tick({ now: w.now, dt: n.btAccum });
         n.btAccum = 0;
@@ -246,7 +249,18 @@ export class Director {
       const dist = n.pos.distanceTo(camera);
       m.setDetail(dist < 70);
       const pose = n.dead || n.needsHelp ? 'lie' : n.speed === 0 && n.pose === 'sit' ? 'sit' : n.pose;
-      const vis = Math.min(3, n.speed * timeRate);
+      let mo = this.motion.get(n.id);
+      if (!mo) {
+        mo = { last: n.pos.clone(), speed: 0 };
+        this.motion.set(n.id, mo);
+      }
+      const moved = Math.hypot(n.pos.x - mo.last.x, n.pos.z - mo.last.z);
+      mo.last.copy(n.pos);
+      // Teleports (fast travel, catching up) aren't walking.
+      const inst = dtReal > 0 && moved < 20 ? moved / dtReal : 0;
+      mo.speed += (inst - mo.speed) * Math.min(1, dtReal * 6);
+      const vis = n.speed > 0 || mo.speed > 0.15 ? Math.min(5, mo.speed) : 0;
+      void timeRate;
       const grade = n.goalS !== null && n.goalS < n.s ? -this.world.route.gradeAt(n.s) : this.world.route.gradeAt(n.s);
       const ph = n.physiology;
       const effort = Math.min(1, Math.max(0, (ph.effAltitude - 6000) / 2800) * 0.6 + ph.exhaustion * 0.5 + (n.role === 'sherpa' || n.strength > 1.2 ? -0.15 : 0));

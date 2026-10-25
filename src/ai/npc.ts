@@ -91,7 +91,7 @@ export class Npc {
    * Walk along the route toward targetS for dt game seconds. Returns true on arrival.
    * Waits behind slower climbers on single-file stretches.
    */
-  moveToward(world: World, targetS: number, dt: number, speedMul = 1): boolean {
+  moveToward(world: World, targetS: number, dt: number, speedMul = 1, matchSpeed?: number): boolean {
     const ds = targetS - this.s;
     if (Math.abs(ds) < 1) {
       this.speed = 0;
@@ -121,7 +121,9 @@ export class Npc {
     const tf = this.s < world.layout.landmarks.c1.s && this.s > 200 ? 0.62 : 1;
     const w = world.weather.sample(world.now, this.altitude);
     const windF = 1 - Math.min(0.6, Math.max(0, (w.windKmh - 50) / 120));
-    const v = realisticSpeed(grade, tf, this.physiology.spo2, this.altitude, eff, 14) * windF * speedMul * passing * this.strength;
+    const own = realisticSpeed(grade, tf, this.physiology.spo2, this.altitude, eff, 14) * windF * passing * this.strength;
+    // Either walk at our own pace, or match someone else's (never beyond what we can manage).
+    const v = matchSpeed !== undefined ? Math.min(own * 1.4, matchSpeed) : own * speedMul;
     const step = Math.min(Math.abs(ds), v * dt);
     this.s += dir * step;
     this.speed = v;

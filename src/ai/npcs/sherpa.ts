@@ -114,22 +114,27 @@ export function sherpaTree(npc: Npc, world: World): BehaviourTree<BB> {
       const { npc, world } = bb;
       const pl = p();
       npc.manageOxygen(world, false);
-      const up = pl.velocityS >= -0.02;
-      const target = Math.min(world.route.length, Math.max(0, pl.s + (up ? 14 : -14)));
-      if (up && npc.s > pl.s + 30) {
+      // Which way you're heading, with hysteresis so a sideways step doesn't turn him around.
+      if (Math.abs(pl.velocityS) > 0.05) bb.memory.leadDir = Math.sign(pl.velocityS);
+      const dir = (bb.memory.leadDir as number) ?? 1;
+      const target = Math.min(world.route.length, Math.max(0, pl.s + dir * 14));
+      // Distance still to go to his lead position (negative: he's past it).
+      const ahead = (target - npc.s) * dir;
+      const playerMoving = Math.abs(pl.velocityS) > 0.03;
+      if (playerMoving ? ahead < -6 : ahead < 1) {
+        // Far enough ahead: wait, turned toward you.
         npc.speed = 0;
-        npc.pose = 'walk';
-        npc.activity = 'waiting for you';
-        return RUNNING;
-      }
-      if (Math.abs(target - npc.s) < 3) {
-        npc.speed = 0;
+        npc.heading = Math.atan2(pl.pos.x - npc.pos.x, pl.pos.z - npc.pos.z);
         const camp = campAt(world, npc.s);
         npc.activity = camp ? `at ${camp.name}` : 'waiting for you';
         return RUNNING;
       }
+      // Walk at your pace, a little faster while short of his lead and slower once past it.
+      const pace = playerMoving ? Math.min(1.2, Math.max(0.4, 1 + ahead / 20)) : Math.min(1, Math.max(0.4, ahead / 8));
       npc.activity = 'leading the way';
-      npc.moveToward(world, target, ctx.dt, up ? 1 : 1.1);
+      // Pace off the player's actual speed along the route; when you've stopped, close the gap at an easy walk.
+      if (playerMoving) npc.moveToward(world, target, ctx.dt, 1, Math.abs(pl.velocityS) * pace);
+      else npc.moveToward(world, target, ctx.dt, pace / npc.strength);
       return RUNNING;
     }),
   );
