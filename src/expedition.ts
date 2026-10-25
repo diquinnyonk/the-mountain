@@ -944,10 +944,14 @@ export class Expedition {
     const p = this.player;
     const m = this.model;
     m.root.position.copy(p.pos);
-    m.root.rotation.y = p.heading;
-    const pose = p.mode === 'dead' || p.mode === 'down' ? 'lie' : p.mode === 'rest' ? 'sit' : p.clipped && p.speedVisual > 0 && this.ctx.route.gradeAt(p.s) > 0.5 ? 'jumar' : 'walk';
-    const lean = p.speedVisual > 0 ? clamp(this.ctx.route.gradeAt(p.s) * 0.4, 0, 0.45) : 0;
-    m.animate(dt, p.speedVisual, lean, pose);
+    m.face(p.heading, dt);
+    const t = this.ctx.terrain;
+    // Slope along the direction the climber faces.
+    const ahead = t.heightAt(p.pos.x + Math.sin(p.heading) * 1.5, p.pos.z + Math.cos(p.heading) * 1.5);
+    const grade = clamp((ahead - p.pos.y) / 1.5, -0.6, 0.8);
+    const pose = p.mode === 'dead' || p.mode === 'down' ? 'lie' : p.mode === 'rest' ? 'sit' : p.clipped && p.speedVisual > 0 && grade > 0.5 ? 'jumar' : 'walk';
+    const effort = clamp((1 - p.effects.speed) * 0.8 + clamp((p.physiology.effAltitude - 6000) / 2800, 0, 1) * 0.6 + p.physiology.exhaustion * 0.4, 0, 1);
+    m.animate(dt, p.speedVisual, grade, pose, effort);
     m.setOxygen(p.gear.o2Flowing > 0);
     m.setLamp(p.gear.headlamp && p.gear.headlampBattery > 0, p.gear.headlampBattery > 0.1 ? 1 : 0.3);
     m.root.visible = p.mode !== 'tent';

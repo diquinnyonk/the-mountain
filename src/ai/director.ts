@@ -242,10 +242,15 @@ export class Director {
       }
       m.root.visible = true;
       m.root.position.copy(n.pos);
-      m.root.rotation.y = n.heading;
+      m.face(n.heading, dtReal);
+      const dist = n.pos.distanceTo(camera);
+      m.setDetail(dist < 70);
       const pose = n.dead || n.needsHelp ? 'lie' : n.speed === 0 && n.pose === 'sit' ? 'sit' : n.pose;
       const vis = Math.min(3, n.speed * timeRate);
-      m.animate(dtReal, vis, vis > 0 ? 0.15 : 0, pose);
+      const grade = n.goalS !== null && n.goalS < n.s ? -this.world.route.gradeAt(n.s) : this.world.route.gradeAt(n.s);
+      const ph = n.physiology;
+      const effort = Math.min(1, Math.max(0, (ph.effAltitude - 6000) / 2800) * 0.6 + ph.exhaustion * 0.5 + (n.role === 'sherpa' || n.strength > 1.2 ? -0.15 : 0));
+      m.animate(dtReal, vis, vis > 0 ? grade : 0, pose, Math.max(0, effort));
       m.setOxygen(n.o2Flow > 0);
       if (showLabels && n.pos.distanceTo(camera) < 250) {
         const p = n.pos.clone().add(new THREE.Vector3(0, 2.3, 0)).project(cam);
