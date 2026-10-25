@@ -19,6 +19,7 @@ import { HOUR } from './core/clock';
 import type { WeatherSample } from './weather/model';
 import { BOTTLE_LITRES } from './player/gear';
 import { TouchControls, isTouchDevice, touchPrompt } from './ui/touch';
+import { RouteGuide } from './world/guide';
 
 type Mode = 'menu' | 'play' | 'pause' | 'camp' | 'dialog' | 'end';
 
@@ -43,6 +44,7 @@ export class Game {
   layout!: RouteLayout;
   terrainMesh!: TerrainMesh;
   features!: Features;
+  guide!: RouteGuide;
   planning!: PlanningScreen;
   debug: DebugPanel;
   exp: Expedition | null = null;
@@ -91,6 +93,11 @@ export class Game {
     this.scene.add(this.terrainMesh.group);
     this.features = new Features(this.route, this.layout);
     this.scene.add(this.features.group);
+    this.guide = new RouteGuide(this.route);
+    try {
+      this.guide.enabled = localStorage.getItem('the-mountain:guide') !== 'off';
+    } catch { /* storage unavailable */ }
+    this.scene.add(this.guide.points);
     this.planning = new PlanningScreen(() => ({
       length: this.route.length,
       c1: this.layout.landmarks.c1.s,
@@ -285,6 +292,12 @@ export class Game {
         showScreen('pause');
       } else if (input.wasPressed('KeyB')) {
         this.showBT = !this.showBT;
+      } else if (input.wasPressed('KeyT')) {
+        this.guide.enabled = !this.guide.enabled;
+        exp.player.showAlert(this.guide.enabled ? 'Route guide on.' : 'Route guide off.', 1.5);
+        try {
+          localStorage.setItem('the-mountain:guide', this.guide.enabled ? 'on' : 'off');
+        } catch { /* storage unavailable */ }
       } else if (input.wasPressed('KeyC') && exp.campHere()) {
         this.openCamp();
       }
@@ -321,9 +334,15 @@ export class Game {
       focus = exp.player.pos;
       timeRate = this.mode === 'play' ? exp.clock.rate : 0;
       exp.updateModel(dt);
+      const p = exp.player;
+      const down = exp.calledOff || p.summited || exp.flags.descentOrdered;
+      this.guide.points.visible = true;
+      if (p.mode === 'tent' || p.dead) this.guide.points.visible = false;
+      else this.guide.update(dt, p.pos, p.s, p.hit.distance, down ? -1 : 1, this.sky.daylight);
       exp.follow.update(dt, exp.player.pos, input, exp.player.heading, exp.player.speedVisual > 0);
       exp.director.render(dt, this.camera.position, timeRate, this.showBT && this.mode === 'play', $('bt-labels'), this.camera);
     } else if (this.ready) {
+      this.guide.points.visible = false;
       this.titleCamera(dt);
     }
     if (!this.ready) return;
