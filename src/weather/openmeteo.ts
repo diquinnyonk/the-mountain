@@ -191,7 +191,9 @@ export async function loadWeather(startIso: string, days: number, fetcher: typeo
         lastError = (e as Error).message;
       }
     }
-    if (lastError) notes.push(`Weather service unavailable for ${plan.from} to ${plan.to} (${lastError}).`);
+    if (lastError) notes.push(/fetch|network|load/i.test(lastError)
+      ? `Couldn't reach Open-Meteo (offline, or blocked by this host), so ${plan.from} to ${plan.to} uses seasonal climatology instead of real weather.`
+      : `Weather service unavailable for ${plan.from} to ${plan.to} (${lastError}).`);
   }
   const synthetic = tl.source.filter((s) => s === 'synthetic').length;
   if (synthetic) notes.push(`${Math.round(synthetic / 24)} day(s) beyond the available data use seasonal climatology.`);

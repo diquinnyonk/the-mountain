@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "smoke": "node tests/smoke.mjs",
-    "bake": "tsx tools/bake-terrain.ts"
+    "bake": "tsx tools/bake-terrain.ts",
+    "build:artifact": "npm run build && tsx tools/build-artifact.ts"
   },
   "dependencies": {
     "three": "0.170.0"

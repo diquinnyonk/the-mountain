@@ -182,7 +182,28 @@ function cubic(p0: number, p1: number, p2: number, p3: number, t: number): numbe
   return p1 + 0.5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
 }
 
+/** Terrain embedded in the page as base64 (single-file builds, e.g. a hosted artifact). */
+interface EmbeddedTerrain {
+  meta: TerrainMeta;
+  bin: string;
+  route: RouteData;
+  farMeta: FarMeta;
+  far: string;
+}
+
+function decodeBase64(b64: string): Uint16Array {
+  const raw = atob(b64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new Uint16Array(bytes.buffer);
+}
+
 export async function loadTerrain(base = './terrain/'): Promise<Terrain> {
+  const embedded = (globalThis as { __TERRAIN__?: EmbeddedTerrain }).__TERRAIN__;
+  if (embedded) {
+    return new Terrain(embedded.meta, decodeBase64(embedded.bin), embedded.route,
+      { meta: embedded.farMeta, data: decodeBase64(embedded.far) });
+  }
   const [meta, bin, route, farMeta, farBin] = await Promise.all([
     fetch(base + 'everest.json').then((r) => r.json()),
     fetch(base + 'everest.bin').then((r) => r.arrayBuffer()),
