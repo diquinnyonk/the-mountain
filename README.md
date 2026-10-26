@@ -18,13 +18,16 @@ npm run dev        # http://localhost:5173
 
 WASD to walk, drag the mouse to look, scroll to zoom. **Shift** pushes harder. **E** clips into fixed ropes and ladder handlines, talks to the doctor, helps collapsed climbers. **Space** self-arrests when you slip. **R** rests. **C** opens the camp menu at a camp (sleep, melt snow, eat, oxygen stash, down suit, wait out weather, fast travel, acclimatisation rotation). **[ ]** set oxygen flow. **1** drink, **2** eat, **3** dexamethasone, **4** nifedipine. **G** goggles, **L** headlamp. **Esc** menu (call off the expedition). **`** debug panel.
 
+In `npm run dev` and `npm run build:dev` builds a **Dev speed** control (1× / 2× / 5×, or press **V**) speeds up the whole simulation; production builds and the artifact leave it out entirely.
+
 Time is compressed while you walk (game time follows how long the real climb would take), so a full expedition is an hour or three of play.
 
 ## Development
 
 ```bash
 npm test           # unit tests: behaviour trees, physiology, weather, terrain/route
-npm run build      # type-check and bundle to dist/
+npm run build      # production build to dist/ (no dev tools)
+npm run build:dev  # local build with dev tools (game speed 1x / 2x / 5x)
 npm run smoke      # browser smoke test (needs `npm run dev` running; mocks Open-Meteo)
 npm run bake       # re-download elevation tiles and rebuild public/terrain/
 ```

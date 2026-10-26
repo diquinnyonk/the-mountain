@@ -52,6 +52,11 @@ export class Input {
     this.pressed.delete(code);
   }
 
+  /** Forget this frame's key presses but keep held keys (for extra simulation substeps). */
+  clearPressed() {
+    this.pressed.clear();
+  }
+
   /** Call at the end of each frame. */
   endFrame() {
     this.pressed.clear();

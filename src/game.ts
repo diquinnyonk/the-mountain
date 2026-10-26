@@ -20,6 +20,7 @@ import type { WeatherSample } from './weather/model';
 import { BOTTLE_LITRES } from './player/gear';
 import { TouchControls, isTouchDevice, touchPrompt } from './ui/touch';
 import { RouteGuide } from './world/guide';
+import { DEV_TOOLS } from './core/devtools';
 
 type Mode = 'menu' | 'play' | 'pause' | 'camp' | 'dialog' | 'end';
 
@@ -55,6 +56,8 @@ export class Game {
   private titleAngle = 0;
   private lastSettings: { s: ExpeditionSettings; w: WeatherLoad } | null = null;
   ready = false;
+  /** Dev-only game speed multiplier (1, 2 or 5). */
+  devSpeed = 1;
   readonly touch: TouchControls | null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -82,7 +85,15 @@ export class Game {
     addEventListener('pointerdown', () => this.audio.init(), { once: true });
     addEventListener('keydown', () => this.audio.init(), { once: true });
     this.wireMenus();
+    if (DEV_TOOLS) {
+      import('./ui/devSpeed').then(({ mountDevSpeed }) => {
+        this.setDevSpeed = mountDevSpeed($('hud'), (v) => (this.devSpeed = v));
+      });
+    }
   }
+
+  /** Dev builds only (stripped from production): sets the speed and updates the buttons. */
+  private setDevSpeed: (v: number) => void = () => {};
 
   async boot() {
     setLoading('Loading Everest…', 'Elevation data for the Khumbu, Western Cwm, Lhotse Face and summit ridge.');
@@ -319,7 +330,14 @@ export class Game {
     let timeRate = 1;
     if (exp && this.mode === 'play') {
       input.enabled = true;
-      exp.frame(dt, input, this.sky.daylight);
+      if (DEV_TOOLS && input.wasPressed('KeyV')) this.setDevSpeed(this.devSpeed === 1 ? 2 : this.devSpeed === 2 ? 5 : 1);
+      const steps = DEV_TOOLS ? this.devSpeed : 1;
+      for (let i = 0; i < steps && !exp.ending && !exp.dialog; i++) {
+        // Extra substeps see held keys but not this frame's presses, so a tap acts once.
+        if (i > 0) input.clearPressed();
+        exp.frame(dt, input, this.sky.daylight);
+      }
+      exp.clock.rate *= steps;
       if (exp.dialog) {
         this.mode = 'dialog';
         $('dialog-title').textContent = exp.dialog.title;
