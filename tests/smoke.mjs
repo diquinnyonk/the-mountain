@@ -55,7 +55,7 @@ const step = async (name, fn) => {
   await fn();
   console.log('ok');
 };
-const shot = (name) => page.screenshot({ path: OUT + name + '.png' });
+const shot = (name) => page.screenshot({ path: OUT + name + '.png', timeout: 120000 });
 const state = () => page.evaluate(() => {
   const g = window.game;
   const e = g.exp;

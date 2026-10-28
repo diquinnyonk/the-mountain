@@ -38,7 +38,7 @@ export interface HudState {
 /** The heads-up display and the screen-space effects of the climber's condition. */
 export class Hud {
   private accum = 1;
-  private lastRadio = -1;
+  private lastRadio = '';
   private canvas: HTMLCanvasElement;
 
   constructor() {
@@ -59,8 +59,10 @@ export class Hud {
     this.fx(s, realTime);
     $('hud-prompt').textContent = s.prompt;
     $('hud-alert').textContent = s.alert;
-    if (s.radio.length !== this.lastRadio) {
-      this.lastRadio = s.radio.length;
+    const last = s.radio[s.radio.length - 1];
+    const radioKey = `${s.radio.length}:${last?.time}:${last?.text}`;
+    if (radioKey !== this.lastRadio) {
+      this.lastRadio = radioKey;
       $('hud-radio').innerHTML = s.radio.slice(-6).map((m) =>
         `<div class="msg ${m.kind}"><time>${formatLocalTime(m.time)}</time><b>${esc(m.from)}:</b> ${esc(m.text)}</div>`).join('');
     }

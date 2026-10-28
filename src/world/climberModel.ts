@@ -57,14 +57,14 @@ const damp = (cur: number, target: number, k: number) => cur + (target - cur) * 
 /** Joint angles (radians) that make up a pose; blended toward each frame. */
 interface Joints {
   hipsY: number; hipsYaw: number; hipsRoll: number;
-  spineX: number; spineYaw: number; neckX: number;
+  spineX: number; spineYaw: number; neckX: number; neckYaw: number; hipsX: number; heave: number;
   thighL: number; thighR: number; kneeL: number; kneeR: number; ankleL: number; ankleR: number;
   shoulderL: number; shoulderR: number; elbowL: number; elbowR: number; armOutL: number; armOutR: number;
   lie: number;
 }
 
 const zeroJoints = (): Joints => ({
-  hipsY: 0.97, hipsYaw: 0, hipsRoll: 0, spineX: 0.05, spineYaw: 0, neckX: 0,
+  hipsY: 0.97, hipsYaw: 0, hipsRoll: 0, spineX: 0.05, spineYaw: 0, neckX: 0, neckYaw: 0, hipsX: 0, heave: 0,
   thighL: 0, thighR: 0, kneeL: 0.05, kneeR: 0.05, ankleL: 0, ankleR: 0,
   shoulderL: 0, shoulderR: 0, elbowL: -0.3, elbowR: -0.3, armOutL: 0.12, armOutR: 0.12, lie: 0,
 });
@@ -93,6 +93,12 @@ export class ClimberModel {
   private walkBlend = 0;
   private j = zeroJoints();
   private yawInit = false;
+  private flinchT = 0;
+  private idleT = Math.random() * 100;
+  private ground: ((x: number, z: number) => number) | null = null;
+  /** Off on ladders (nothing under the feet) and for distant climbers. */
+  groundEnabled = true;
+  private tmp = new THREE.Vector3();
 
   constructor(look: ClimberLook, withLight = false) {
     const mat = (color: number, roughness = 0.7, metalness = 0) => {
@@ -255,6 +261,16 @@ export class ClimberModel {
     }
   }
 
+  /** Terrain height lookup, so each foot is placed on the ground under it. */
+  setGround(fn: (x: number, z: number) => number) {
+    this.ground = fn;
+  }
+
+  /** A stumble or a gust: knees buckle, arms fly out, then recover. */
+  flinch() {
+    this.flinchT = 1;
+  }
+
   /** Turn smoothly to face a heading (radians, 0 = +z). */
   face(heading: number, dt: number) {
     if (!this.yawInit) {
@@ -276,54 +292,79 @@ export class ClimberModel {
     const moving = speed > 0.05 && (pose === 'walk' || pose === 'jumar');
     this.walkBlend = damp(this.walkBlend, moving ? 1 : 0, Math.min(1, dt * 6));
     const b = this.walkBlend;
-    const stride = THREE.MathUtils.clamp(0.32 + 0.2 * speed, 0.35, 0.85) * (1 - 0.35 * effort);
+    // Foot excursion per stance (m): longer when fast, short shuffling steps when spent.
+    const reach = THREE.MathUtils.clamp(0.3 + 0.17 * speed, 0.32, 0.8) * (1 - 0.4 * effort);
+    // Fraction of the cycle each foot is on the ground; more double support when tired.
+    const duty = 0.6 + 0.12 * effort;
     if (moving) {
-      // Cadence follows speed so the feet don't slide; at altitude, linger with the legs apart (the rest step).
-      const s = Math.sin(this.phase);
-      const rest = 1 - 0.65 * effort * s * s;
-      this.phase += ((Math.PI * speed) / stride) * Math.max(0.25, rest) * dt;
+      // A planted foot travels `reach` while the body moves at `speed`, so the feet never slide.
+      // At altitude, pause briefly just after each foot lands (the rest step).
+      const u = ((this.phase % 1) + 1) % 1;
+      const near = Math.min(Math.abs(u - 0.04), Math.abs(u - 0.54));
+      const rest = 1 - 0.55 * effort * Math.exp(-((near / 0.07) ** 2));
+      this.phase += ((duty * speed) / reach) * Math.max(0.35, rest) * dt;
     }
     this.breath += dt * (1.2 + effort * 1.6 + (moving ? 0.8 : 0));
+    this.idleT += dt;
+    this.flinchT = Math.max(0, this.flinchT - dt * 1.6);
     const t = zeroJoints();
-    const p = this.phase, sp = Math.sin(p);
     const breathe = Math.sin(this.breath) * (0.02 + 0.03 * effort);
+    this.footTargets = null;
 
     if (pose === 'sit') {
       Object.assign(t, {
         hipsY: 0.42, spineX: 0.38 + breathe, neckX: 0.25, thighL: -1.45, thighR: -1.35, kneeL: 1.55, kneeR: 1.4,
         ankleL: -0.1, ankleR: -0.05, shoulderL: -0.55, shoulderR: -0.6, elbowL: -0.9, elbowR: -0.8, armOutL: 0.25, armOutR: 0.25,
+        heave: breathe * 0.6, neckYaw: 0.3 * Math.sin(this.idleT * 0.21),
       });
     } else if (pose === 'lie') {
       Object.assign(t, { hipsY: 0.14, spineX: 0, neckX: -0.2, thighL: -0.1, thighR: 0.05, kneeL: 0.25, kneeR: 0.1, shoulderL: 0.15, shoulderR: -0.1, elbowL: -0.4, elbowR: -0.2, armOutL: 0.45, armOutR: 0.35, lie: 1 });
     } else {
-      const A = Math.min(0.62, stride / 1.4) * b;
-      const uphill = THREE.MathUtils.clamp(lean, -0.4, 0.6);
-      const legs = [p, p + Math.PI];
-      const leg = (ph: number) => {
-        const s = Math.sin(ph), c = Math.cos(ph);
-        // Thigh swings; the knee folds while the leg comes through, more so uphill.
-        const thigh = -A * s - uphill * 0.35 * b;
-        const knee = b * (0.1 + 0.15 * effort + (0.75 + 0.6 * Math.max(0, uphill)) * Math.pow(Math.max(0, c), 1.6) * Math.min(1, A * 3)) + 0.05;
-        const ankle = -(thigh + knee) * 0.85 + b * 0.25 * Math.max(0, -c) * Math.max(0, s);
-        return { thigh, knee, ankle };
+      const uphill = THREE.MathUtils.clamp(lean, -0.5, 0.7);
+      const u = ((this.phase % 1) + 1) % 1;
+      // Each foot: planted (moving back under the body) or swinging forward through the air.
+      const foot = (uf: number) => {
+        const w = ((uf % 1) + 1) % 1;
+        let z: number, lift: number, pitch: number;
+        if (w < duty) {
+          const k = w / duty;
+          z = reach * (0.5 - k);
+          lift = 0;
+          // Heel strike (toes up), flat, then heel rising into push-off.
+          pitch = -0.28 * Math.max(0, 1 - k / 0.18) + 0.5 * Math.max(0, (k - 0.72) / 0.28) ** 1.5;
+        } else {
+          const k = (w - duty) / (1 - duty);
+          const e = 0.5 - 0.5 * Math.cos(Math.PI * k);
+          z = reach * (-0.5 + e);
+          // Lift the boot clear: higher uphill and with crampons, a scuffing shuffle when exhausted.
+          lift = Math.sin(Math.PI * Math.min(1, k * 1.1)) * (0.1 + 0.12 * Math.max(0, uphill) - 0.04 * effort);
+          pitch = 0.3 * (1 - k) - 0.15 * Math.sin(Math.PI * k);
+        }
+        return { z: z * b, lift: lift * b, pitch: pitch * b, stance: w < duty };
       };
-      const [L, R] = legs.map(leg);
-      const armA = (0.32 - 0.12 * effort) * b;
+      const fL = foot(u), fR = foot(u + 0.5);
+      const swingSide = fL.stance ? 1 : -1; // +1: right leg swinging
+      const bob = (0.02 + 0.015 * effort) * b * (0.5 - 0.5 * Math.cos(4 * Math.PI * u));
+      const armA = (0.3 - 0.1 * effort) * b;
+      // Arms follow the opposite foot; the pole hand reaches to plant as that foot lands.
+      const nL = fR.z / Math.max(0.01, reach / 2), nR = fL.z / Math.max(0.01, reach / 2);
       Object.assign(t, {
-        // Lowest with both feet down, highest passing over the standing leg.
-        hipsY: 0.97 - 0.035 * effort - b * (0.022 + 0.015 * effort) * (1 - Math.cos(2 * p)) / 2,
-        hipsYaw: 0.1 * sp * b, hipsRoll: 0.045 * sp * b,
-        spineX: 0.06 + b * (0.06 + 0.25 * effort) + uphill * 0.45 + breathe, spineYaw: -0.14 * sp * b,
-        neckX: 0.25 * effort - uphill * 0.25 + 0.04 * Math.sin(2 * p) * b,
-        thighL: L.thigh, thighR: R.thigh, kneeL: L.knee, kneeR: R.knee, ankleL: L.ankle, ankleR: R.ankle,
-        // Arms counter-swing; the pole hand reaches forward to plant.
-        shoulderL: armA * sp - 0.15 * b, shoulderR: -armA * sp - 0.1 * b,
-        elbowL: -0.35 - 0.3 * Math.max(0, -sp) * b, elbowR: -0.4 - 0.25 * Math.max(0, sp) * b,
+        hipsY: 0.97 - 0.035 * effort - 0.05 * Math.abs(uphill) * b - bob,
+        // Pelvis turns with the swinging leg, drops a touch on its side, and weight shifts over the planted foot.
+        hipsYaw: 0.1 * b * (fR.z - fL.z) / Math.max(0.01, reach), hipsRoll: 0.04 * swingSide * b, hipsX: -0.025 * swingSide * b,
+        spineX: 0.06 + b * (0.06 + 0.25 * effort) + uphill * 0.45 + breathe, spineYaw: -0.12 * b * (fR.z - fL.z) / Math.max(0.01, reach),
+        neckX: 0.25 * effort - uphill * 0.25 + bob * 1.5,
+        neckYaw: (1 - b) * 0.45 * Math.sin(this.idleT * 0.27) * Math.sin(this.idleT * 0.11 + 1),
+        shoulderL: -armA * nL - 0.15 * b, shoulderR: -armA * nR - 0.1 * b,
+        elbowL: -0.35 - 0.3 * Math.max(0, nL) * b, elbowR: -0.4 - 0.25 * Math.max(0, nR) * b,
         armOutL: 0.14 + 0.02 * effort, armOutR: 0.14,
+        heave: breathe * (0.4 + (1 - b)),
       });
+      this.footTargets = [fL, fR];
+      this.footSlope = uphill;
       if (pose === 'jumar') {
         // Left hand up on the jumar, right hand low on the rope.
-        Object.assign(t, { shoulderL: -2.3 + 0.15 * sp * b, elbowL: -0.35, shoulderR: -0.7, elbowR: -0.9, armOutL: 0.05, spineX: t.spineX + 0.12 });
+        Object.assign(t, { shoulderL: -2.3 + 0.15 * nL * b, elbowL: -0.35, shoulderR: -0.7, elbowR: -0.9, armOutL: 0.05, spineX: t.spineX + 0.12 });
       }
       if (!moving) {
         // Hands on knees or poles, catching breath.
@@ -332,23 +373,40 @@ export class ClimberModel {
         t.spineX += effort * 0.25 * (1 - b);
       }
     }
+    if (this.flinchT > 0) {
+      const f = Math.sin(Math.PI * this.flinchT) * this.flinchT;
+      t.spineX += 0.35 * f;
+      t.hipsY -= 0.09 * f;
+      t.armOutL += 0.7 * f;
+      t.armOutR += 0.7 * f;
+      t.shoulderL -= 0.6 * f;
+      t.shoulderR -= 0.4 * f;
+    }
 
     // Blend toward the target pose.
     const k = 1 - Math.exp(-dt * 14);
     const j = this.j;
     for (const key of Object.keys(t) as (keyof Joints)[]) j[key] = damp(j[key], t[key], k);
 
-    this.hips.position.y = j.hipsY;
+    this.hips.position.set(j.hipsX, j.hipsY, 0);
     this.hips.rotation.set(0, j.hipsYaw, j.hipsRoll);
     this.spine.rotation.set(j.spineX, j.spineYaw, -j.hipsRoll * 0.7);
-    this.neck.rotation.x = j.neckX - j.spineX * 0.35;
+    this.neck.rotation.set(j.neckX - j.spineX * 0.35, j.neckYaw, 0);
+    for (const [i, a] of this.arms.entries()) a.shoulder.position.y = 0.52 + j.heave * 0.25 * (i ? 1 : 1);
     const [lL, lR] = this.legs;
-    lL.thigh.rotation.set(j.thighL, 0, 0.03);
-    lR.thigh.rotation.set(j.thighR, 0, -0.03);
-    lL.knee.rotation.x = j.kneeL;
-    lR.knee.rotation.x = j.kneeR;
-    lL.ankle.rotation.x = j.ankleL;
-    lR.ankle.rotation.x = j.ankleR;
+    if (this.footTargets) {
+      // Solve each leg so its boot lands where the gait puts it, on the ground beneath.
+      const flinch = this.flinchT > 0 ? Math.sin(Math.PI * this.flinchT) * this.flinchT : 0;
+      this.solveLeg(lL, this.footTargets[0], -0.1, j.hipsY, flinch);
+      this.solveLeg(lR, this.footTargets[1], 0.1, j.hipsY, flinch);
+    } else {
+      lL.thigh.rotation.set(j.thighL, 0, 0.03);
+      lR.thigh.rotation.set(j.thighR, 0, -0.03);
+      lL.knee.rotation.x = j.kneeL;
+      lR.knee.rotation.x = j.kneeR;
+      lL.ankle.rotation.x = j.ankleL;
+      lR.ankle.rotation.x = j.ankleR;
+    }
     const [aL, aR] = this.arms;
     aL.shoulder.rotation.set(j.shoulderL, 0, -j.armOutL);
     aR.shoulder.rotation.set(j.shoulderR, 0, j.armOutR);
@@ -357,5 +415,41 @@ export class ClimberModel {
     this.body.rotation.x = -Math.PI / 2 * j.lie;
     // Lying on the back: lift by the depth of the pack.
     this.body.position.set(0, 0.3 * j.lie, 0.1 * j.lie);
+  }
+
+  private footTargets: { z: number; lift: number; pitch: number; stance: boolean }[] | null = null;
+  private footSlope = 0;
+
+  /**
+   * Two-bone IK in the leg's fore-aft plane: from where the boot should be (forward
+   * offset, lift, the ground height under it) find thigh, knee and ankle angles.
+   */
+  private solveLeg(leg: { thigh: THREE.Group; knee: THREE.Group; ankle: THREE.Group }, f: { z: number; lift: number; pitch: number }, side: number, hipsY: number, flinch: number) {
+    const L1 = 0.44, L2 = 0.44, ANKLE = 0.09;
+    // Ground height under the foot, relative to the climber's origin.
+    let groundY: number;
+    if (this.ground && this.groundEnabled && this.detailOn) {
+      const r = this.root;
+      const yaw = r.rotation.y;
+      const p = this.tmp.set(side * Math.cos(yaw) + f.z * Math.sin(yaw), 0, -side * Math.sin(yaw) + f.z * Math.cos(yaw)).add(r.position);
+      groundY = THREE.MathUtils.clamp(this.ground(p.x, p.z) - r.position.y, -0.35, 0.35);
+    } else {
+      groundY = f.z * this.footSlope;
+    }
+    const hipH = hipsY - 0.02;
+    const fz = f.z;
+    const fy = groundY + ANKLE + f.lift - hipH; // ankle target below the hip (negative)
+    let d = Math.hypot(fz, fy);
+    d = THREE.MathUtils.clamp(d, 0.3, L1 + L2 - 0.002);
+    const interior = Math.acos(THREE.MathUtils.clamp((L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2), -1, 1));
+    const knee = Math.PI - interior + flinch * 0.4;
+    const toTarget = Math.atan2(fz, -fy);
+    const alpha = Math.acos(THREE.MathUtils.clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+    const thigh = -(toTarget + alpha) - flinch * 0.2;
+    leg.thigh.rotation.set(thigh, 0, side < 0 ? 0.03 : -0.03);
+    leg.knee.rotation.x = knee;
+    // Keep the sole along the ground, plus heel strike / push-off.
+    const groundPitch = -Math.atan(this.footSlope);
+    leg.ankle.rotation.x = groundPitch + f.pitch - thigh - knee;
   }
 }

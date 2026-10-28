@@ -5,8 +5,12 @@ import { describe } from '../weather/openmeteo';
 import { DAY, localMidnightUtc } from '../core/clock';
 import { seasonFor } from '../ai/director';
 
+export type StartCamp = 'bc' | 'c1' | 'c2' | 'c3' | 'c4';
+
 export interface ExpeditionSettings {
   date: string;
+  /** Where on the mountain to begin (defaults to Base Camp). */
+  startCamp?: StartCamp;
   style: 'full' | 'push';
   sherpa: boolean;
   o2Stash: number;
@@ -24,6 +28,7 @@ export class PlanningScreen {
   private sherpa = segmented('plan-sherpa');
   private o2 = segmented('plan-o2');
   private speed = segmented('plan-speed');
+  private start = segmented('plan-start', (v) => this.updateStart(v));
   private token = 0;
   onStart?: (s: ExpeditionSettings, w: WeatherLoad) => void;
 
@@ -62,7 +67,15 @@ export class PlanningScreen {
       sherpa: this.sherpa() === 'yes',
       o2Stash: Number(this.o2()),
       speed: Number(this.speed()),
+      startCamp: this.start() as StartCamp,
     };
+  }
+
+  private updateStart(v: string) {
+    const names: Record<string, string> = { bc: 'Base Camp', c1: 'Camp 1', c2: 'Camp 2', c3: 'Camp 3', c4: 'the South Col' };
+    $('btn-start').textContent = `Start at ${names[v]}`;
+    $('plan-start-hint').textContent = v === 'bc' ? 'The whole climb, from the foot of the Icefall.'
+      : `You climbed here over the previous weeks: acclimatised for this camp, with the sections below already done.${v === 'c4' ? ' You start in the afternoon on low-flow oxygen.' : ''}`;
   }
 
   private updateStyleHint() {

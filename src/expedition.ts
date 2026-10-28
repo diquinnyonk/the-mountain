@@ -96,18 +96,40 @@ export class Expedition {
   constructor(private ctx: SceneContext, readonly settings: ExpeditionSettings, readonly weather: WeatherTimeline, save?: SaveData) {
     const { route, layout, scene } = ctx;
     this.rng = new Rng('player:' + settings.date);
-    const start = localMidnightUtc(settings.date) + 7 * HOUR;
+    const startId = this.startCamp;
+    const startCamp = layout.landmarks[startId];
+    // At the South Col you arrive in the afternoon, ready to rest before a night summit push.
+    const start = localMidnightUtc(settings.date) + (startId === 'c4' ? 14 : 7) * HOUR;
+    this.startTime = start;
     this.clock = new GameClock(start);
     this.player = new Player(route, layout, this.rng);
-    this.player.placeAt(14, 4);
+    this.player.placeAt(startCamp.s + (startId === 'bc' ? 14 : 6), 4);
     this.prevS = this.player.s;
     const g = this.player.gear;
+    const ph = this.player.physiology;
     if (settings.style === 'push') {
-      Object.assign(this.player.physiology, { acclimAlt: 7000, cough: 0.35, energy: 85, hydration: 75 });
+      Object.assign(ph, { acclimAlt: 7000, cough: 0.35, energy: 85, hydration: 75 });
     }
     this.stash.c3 = settings.o2Stash > 0 ? 1 : 0;
     this.stash.c4 = settings.o2Stash;
     g.water = 1.5;
+    if (startId !== 'bc') {
+      // Starting higher means you climbed here over the previous weeks: acclimatised for this camp,
+      // the sections below already walked, and dressed for the altitude.
+      const campAlt = route.altitudeAt(startCamp.s);
+      ph.acclimAlt = Math.max(ph.acclimAlt, Math.min(7400, campAlt - 400));
+      ph.cough = Math.max(ph.cough, 0.2);
+      const idx = layout.sections.findIndex((sec) => sec.to === startId);
+      for (let i = 0; i <= idx; i++) this.walked.add(i);
+      this.player.maxS = startCamp.s;
+      this.lastCampId = startId;
+      if (startId === 'c3' || startId === 'c4') g.downSuit = true;
+      if (startId === 'c4') {
+        // Resting on low-flow oxygen at the South Col.
+        g.litres = 1080;
+        g.flowLpm = 1;
+      }
+    }
 
     this.season = seasonFor(start, route.length, layout.landmarks.c1.s);
     const self = this;
@@ -156,6 +178,7 @@ export class Expedition {
     };
 
     this.model = new ClimberModel({ suit: 0xe53935, pack: 0x1e3a5f, helmet: 0xffffff }, true);
+    this.model.setGround((x, z) => ctx.terrain.heightAt(x, z));
     scene.add(this.model.root);
     this.ghost = new ClimberModel({ suit: 0x2e7d32, pack: 0x555555, helmet: 0x888888 });
     this.ghost.setGhost(0);
@@ -167,7 +190,8 @@ export class Expedition {
     if (save) {
       this.restore(save);
     } else {
-      this.log(`Arrived at Everest Base Camp, 5,364 m, on ${formatLocalDate(start)}.`);
+      if (startId === 'bc') this.log(`Arrived at Everest Base Camp, 5,364 m, on ${formatLocalDate(start)}.`);
+      else this.log(`Starting at ${startCamp.name}, ${Math.round(route.altitudeAt(startCamp.s)).toLocaleString()} m, on ${formatLocalDate(start)}, after climbing up over the previous weeks.`);
       if (settings.style === 'push') this.log('Five weeks of acclimatisation rotations are behind you. This is the summit push.');
       this.radio('Ruth (expedition leader)', this.welcomeText(), 'info');
       this.radio('Ruth (expedition leader)', forecastText(this.world), 'info');
@@ -176,7 +200,25 @@ export class Expedition {
     this.ctx.features.setRopesFixedTo(this.world.ropeFixedTo);
   }
 
+  /** The camp this expedition started from (older saves have none: Base Camp). */
+  get startCamp(): LandmarkId {
+    return this.settings.startCamp ?? 'bc';
+  }
+
+  private startTime = 0;
+
   private welcomeText() {
+    const L0 = this.ctx.layout.landmarks;
+    if (this.startCamp !== 'bc') {
+      const here = L0[this.startCamp].name;
+      const advice: Record<string, string> = {
+        c1: 'Rest, drink, and push on to Camp 2 tomorrow.',
+        c2: 'Camp 3 next, up the Lhotse Face. Stay clipped in.',
+        c3: 'Next, the Yellow Band and the Geneva Spur to the South Col. Go on oxygen for it.',
+        c4: 'Eat, drink, sleep on low flow. Summit push leaves at 21:00. Turnaround is 13:00.',
+      };
+      return `You're at ${here}. ${advice[this.startCamp] ?? ''}`;
+    }
     if (!this.season.inSeason) {
       return `Welcome to Base Camp. It's ${this.season.name}: no other teams, no Icefall Doctors, no fixed ropes. You are on your own up there.`;
     }
@@ -415,10 +457,10 @@ export class Expedition {
       switch (e) {
         case 'cough': audio.cough(); break;
         case 'clip': case 'unclip': audio.clip(); break;
-        case 'stumble': this.follow.addShake(0.4); break;
-        case 'slip': this.follow.addShake(0.8); this.log(`Slipped at ${Math.round(p.altitude)} m.`); break;
+        case 'stumble': this.follow.addShake(0.4); this.model.flinch(); break;
+        case 'slip': this.follow.addShake(0.8); this.model.flinch(); this.log(`Slipped at ${Math.round(p.altitude)} m.`); break;
         case 'arrest': this.log('Self-arrested with the ice axe.'); break;
-        case 'gust': this.follow.addShake(0.5); break;
+        case 'gust': this.follow.addShake(0.5); this.model.flinch(); break;
         case 'ladderFall': this.log('Fell off a ladder in the Icefall; the handline held.'); break;
         case 'ladder':
           if (!this.ladderLogged) {
@@ -858,7 +900,7 @@ export class Expedition {
     const p = this.player, ph = p.physiology;
     return {
       'Highest point': `${Math.round(this.ctx.route.altitudeAt(p.maxS)).toLocaleString()} m`,
-      'Days on the mountain': `${((this.clock.time - (localMidnightUtc(this.settings.date) + 7 * HOUR)) / (24 * HOUR)).toFixed(1)}`,
+      'Days on the mountain': `${((this.clock.time - this.startTime) / (24 * HOUR)).toFixed(1)}`,
       'Distance walked': `${(this.distanceWalked / 1000).toFixed(1)} km`,
       'Oxygen used': `${Math.round(this.o2Used)} L (${(this.o2Used / BOTTLE_LITRES).toFixed(1)} cylinders)`,
       'Acclimatised to': `${Math.round(ph.acclimAlt).toLocaleString()} m`,
@@ -945,6 +987,7 @@ export class Expedition {
     const m = this.model;
     m.root.position.copy(p.pos);
     m.face(p.heading, dt);
+    m.groundEnabled = p.mode !== 'ladder';
     const t = this.ctx.terrain;
     // Slope along the direction the climber faces.
     const ahead = t.heightAt(p.pos.x + Math.sin(p.heading) * 1.5, p.pos.z + Math.cos(p.heading) * 1.5);

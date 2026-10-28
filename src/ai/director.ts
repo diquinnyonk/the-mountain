@@ -240,6 +240,7 @@ export class Director {
       }
       if (!m) {
         m = new ClimberModel(n.look);
+        m.setGround((x, z) => this.world.route.terrain.heightAt(x, z));
         this.models.set(n.id, m);
         this.group.add(m.root);
       }
