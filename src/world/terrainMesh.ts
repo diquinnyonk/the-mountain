@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Terrain } from './heightmap';
 import { Noise2 } from './noise';
 import { smoothstep, clamp } from '../core/mathx';
+import { addTerrainDetail } from './terrainDetail';
 
 const CHUNK_PX = 64;
 /** LOD sample spacing in DEM pixels and the camera distance (m) below which it is used. */
@@ -61,6 +62,7 @@ export class TerrainMesh {
 
   constructor(private terrain: Terrain, private lodScale = 1) {
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, shadowSide: THREE.FrontSide });
+    addTerrainDetail(this.material, lodScale < 1);
     const nx = Math.ceil(terrain.width / CHUNK_PX), nz = Math.ceil(terrain.height / CHUNK_PX);
     for (let cj = 0; cj < nz; cj++) {
       for (let ci = 0; ci < nx; ci++) {

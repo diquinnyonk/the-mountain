@@ -47,6 +47,7 @@ export class TouchControls {
         <button class="tbtn small" data-tap="KeyG">Goggles</button>
         <button class="tbtn small" data-tap="KeyL">Lamp</button>
         <button class="tbtn small" data-tap="KeyT">Guide</button>
+        <button class="tbtn small" data-tap="KeyM">Map</button>
         <button class="tbtn small" data-tap="KeyB">NPC minds</button>
       </div>`;
     this.root.prepend(this.stick);

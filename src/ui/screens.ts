@@ -1,4 +1,4 @@
-export type ScreenId = 'title' | 'help' | 'plan' | 'loading' | 'pause' | 'camp' | 'dialog' | 'end';
+export type ScreenId = 'title' | 'help' | 'plan' | 'loading' | 'pause' | 'camp' | 'dialog' | 'end' | 'map';
 
 export const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 

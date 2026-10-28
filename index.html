@@ -23,7 +23,8 @@
     <div id="hud-alert"></div>
     <div id="hud-radio" class="panel"></div>
     <div id="hud-vitals" class="panel"></div>
-    <div id="hud-keys">WASD move · Shift push · E clip/interact · R rest · C camp · [ ] O₂ flow · 1 drink · 2 eat · 3 dex · 4 nifedipine · G goggles · L lamp · T guide · Esc menu</div>
+    <canvas id="hud-minimap" width="176" height="176" title="Map (M)"></canvas>
+    <div id="hud-keys">WASD move · Shift push · E clip/interact · R rest · C camp · [ ] O₂ flow · 1 drink · 2 eat · 3 dex · 4 nifedipine · G goggles · L lamp · T guide · M map · Esc menu</div>
   </div>
 
   <section id="screen-title" class="screen">
@@ -54,7 +55,7 @@
         </div>
         <div>
           <h3>Controls</h3>
-          <p><kbd>W A S D</kbd> walk, drag the mouse to look, scroll to zoom. <kbd>Shift</kbd> push harder (faster, more exhausting). <kbd>E</kbd> clip into fixed ropes, clip ladders, talk/help. <kbd>Space</kbd> self-arrest when you slip. <kbd>R</kbd> rest. <kbd>C</kbd> camp menu at a camp. <kbd>1</kbd> drink, <kbd>2</kbd> eat, <kbd>3</kbd> dexamethasone, <kbd>4</kbd> nifedipine. <kbd>G</kbd> goggles, <kbd>L</kbd> headlamp, <kbd>T</kbd> route guide (a light trail to follow), <kbd>Esc</kbd> menu (call off the expedition), <kbd>B</kbd> show NPC behaviour trees, <kbd>`</kbd> debug.</p>
+          <p><kbd>W A S D</kbd> walk, drag the mouse to look, scroll to zoom. <kbd>Shift</kbd> push harder (faster, more exhausting). <kbd>E</kbd> clip into fixed ropes, clip ladders, talk/help. <kbd>Space</kbd> self-arrest when you slip. <kbd>R</kbd> rest. <kbd>C</kbd> camp menu at a camp. <kbd>1</kbd> drink, <kbd>2</kbd> eat, <kbd>3</kbd> dexamethasone, <kbd>4</kbd> nifedipine. <kbd>G</kbd> goggles, <kbd>L</kbd> headlamp, <kbd>T</kbd> route guide (a light trail to follow), <kbd>M</kbd> map, <kbd>Esc</kbd> menu (call off the expedition), <kbd>B</kbd> show NPC behaviour trees, <kbd>`</kbd> debug.</p>
           <h3>On a phone or tablet</h3>
           <p>Drag on the left of the screen to walk, drag on the right to look, pinch to zoom. The big button does whatever fits the moment: clip in, self-arrest, talk, help, open your tent. Pack holds water, food, medicine, oxygen flow, goggles and lamp. ☰ opens the menu.</p>
           <h3>Time</h3>
@@ -113,6 +114,25 @@
 
   <section id="screen-loading" class="screen" hidden>
     <div class="card"><h2 id="loading-title">Loading…</h2><p id="loading-text" class="hint"></p></div>
+  </section>
+
+  <section id="screen-map" class="screen" hidden>
+    <div class="card wide map-card">
+      <div class="map-head">
+        <div>
+          <p class="eyebrow">Mount Everest · South Col route</p>
+          <h2 id="map-where"></h2>
+          <p id="map-sub" class="hint"></p>
+        </div>
+        <div class="seg" id="map-zoom">
+          <button data-v="all" class="on">Whole massif</button><button data-v="near">Around me</button>
+        </div>
+      </div>
+      <canvas id="map-canvas"></canvas>
+      <canvas id="map-profile"></canvas>
+      <p class="hint map-legend"><span class="lg you"></span>You <span class="lg sherpa"></span>Your Sherpa <span class="lg climber"></span>Other climbers <span class="lg camp"></span>Camp <span class="lg rope"></span>Fixed ropes <span class="lg route"></span>Route</p>
+      <div class="buttons"><button id="btn-map-close" class="primary">Back to the climb</button></div>
+    </div>
   </section>
 
   <section id="screen-pause" class="screen" hidden>

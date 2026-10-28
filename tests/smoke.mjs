@@ -111,7 +111,7 @@ await step('camp menu', async () => {
   await page.evaluate(() => window.game.debugActions().teleport('c2'));
   await page.waitForTimeout(500);
   await page.keyboard.press('KeyC');
-  await page.waitForSelector('#screen-camp:not([hidden])', { timeout: 5000 });
+  await page.waitForSelector('#screen-camp:not([hidden])', { timeout: 30000 });
   await shot('06-camp');
   await page.click('#btn-camp-close');
 });

@@ -21,8 +21,11 @@ import { BOTTLE_LITRES } from './player/gear';
 import { TouchControls, isTouchDevice, touchPrompt } from './ui/touch';
 import { RouteGuide } from './world/guide';
 import { DEV_TOOLS } from './core/devtools';
+import { RockScatter } from './world/scatter';
+import { SummitPlume } from './world/plume';
+import { EverestMap, type MapState } from './ui/map';
 
-type Mode = 'menu' | 'play' | 'pause' | 'camp' | 'dialog' | 'end';
+type Mode = 'menu' | 'play' | 'pause' | 'camp' | 'dialog' | 'end' | 'map';
 
 const CALM: WeatherSample = {
   time: 0, altitude: 0, tempC: -10, windKmh: 15, gustKmh: 20, windDirDeg: 270, humidity: 40, cloudAtAltitude: 0.1,
@@ -46,6 +49,11 @@ export class Game {
   terrainMesh!: TerrainMesh;
   features!: Features;
   guide!: RouteGuide;
+  rocks!: RockScatter;
+  plume!: SummitPlume;
+  map!: EverestMap;
+  private mapZoom: 'all' | 'near' = 'all';
+  private minimapAccum = 0;
   planning!: PlanningScreen;
   debug: DebugPanel;
   exp: Expedition | null = null;
@@ -109,6 +117,13 @@ export class Game {
       this.guide.enabled = localStorage.getItem('the-mountain:guide') !== 'off';
     } catch { /* storage unavailable */ }
     this.scene.add(this.guide.points);
+    this.rocks = new RockScatter(this.terrain);
+    this.scene.add(this.rocks.mesh);
+    this.plume = new SummitPlume(this.route.pointAt(this.route.length));
+    this.scene.add(this.plume.group);
+    setLoading('Loading Everest…', 'Drawing the map.');
+    await new Promise((r) => setTimeout(r, 0));
+    this.map = new EverestMap(this.terrain, this.route, this.layout);
     this.planning = new PlanningScreen(() => ({
       length: this.route.length,
       c1: this.layout.landmarks.c1.s,
@@ -153,6 +168,15 @@ export class Game {
       this.quitToTitle();
     };
     $('btn-camp-close').onclick = () => this.closeCamp();
+    $('btn-map-close').onclick = () => this.resume();
+    $('hud-minimap').addEventListener('click', () => this.openMap());
+    $('map-zoom').addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (!b) return;
+      for (const x of $('map-zoom').querySelectorAll('button')) x.classList.toggle('on', x === b);
+      this.mapZoom = b.dataset.v as 'all' | 'near';
+      this.drawFullMap();
+    });
     $('btn-dialog-close').onclick = () => this.resume();
     $('btn-retry').onclick = () => {
       if (this.lastSettings) this.start(this.lastSettings.s, this.lastSettings.w);
@@ -260,6 +284,56 @@ export class Game {
     }
   }
 
+  private mapState(): MapState {
+    const exp = this.exp!;
+    const p = exp.player;
+    const markers = exp.world.npcs
+      .filter((n) => n.visible && n.role !== 'leader' && n.role !== 'doctor' && !(n.inTent && !n.dead))
+      .map((n) => ({
+        x: n.pos.x, z: n.pos.z,
+        kind: (n.dead ? 'dead' : n === exp.director.sherpa ? 'sherpa' : 'climber') as 'dead' | 'sherpa' | 'climber',
+        label: n === exp.director.sherpa ? n.name.split(' ')[0] : undefined,
+      }));
+    return {
+      player: { x: p.pos.x, z: p.pos.z, heading: p.heading, s: p.s, altitude: p.altitude },
+      markers, ropeFixedTo: exp.world.ropeFixedTo, place: exp.placeLabel(),
+    };
+  }
+
+  private openMap() {
+    if (!this.exp || this.mode !== 'play') return;
+    this.mode = 'map';
+    showScreen('map');
+    this.drawFullMap();
+  }
+
+  private drawFullMap() {
+    const exp = this.exp;
+    if (!exp) return;
+    const st = this.mapState();
+    const L = this.layout.landmarks;
+    const next = this.layout.camps.find((c) => c.s > exp.player.s + 60);
+    const toSummit = this.route.length - exp.player.s;
+    $('map-where').textContent = `${Math.round(st.player.altitude).toLocaleString()} m · ${st.place}`;
+    $('map-sub').textContent = [
+      next ? `${(Math.max(0, next.s - exp.player.s) / 1000).toFixed(1)} km of route to ${next.name}` : '',
+      toSummit > 15 ? `${(toSummit / 1000).toFixed(1)} km and ${Math.round(L.summit.altitude - st.player.altitude).toLocaleString()} m of climbing to the summit` : 'At the summit',
+    ].filter(Boolean).join(' · ');
+    const fit = (c: HTMLCanvasElement) => {
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      c.width = c.clientWidth * dpr;
+      c.height = c.clientHeight * dpr;
+      const ctx = c.getContext('2d')!;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return ctx;
+    };
+    const mc = $<HTMLCanvasElement>('map-canvas');
+    const view = this.mapZoom === 'near' ? { x: st.player.x, z: st.player.z, mpp: 4 } : null;
+    this.map.draw(fit(mc), mc.clientWidth, mc.clientHeight, st, view, false);
+    const pc = $<HTMLCanvasElement>('map-profile');
+    this.map.drawProfile(fit(pc), pc.clientWidth, pc.clientHeight, st);
+  }
+
   private closeCamp() {
     this.exp?.leaveCamp();
     this.mode = 'play';
@@ -311,7 +385,11 @@ export class Game {
         } catch { /* storage unavailable */ }
       } else if (input.wasPressed('KeyC') && exp.campHere()) {
         this.openCamp();
+      } else if (input.wasPressed('KeyM')) {
+        this.openMap();
       }
+    } else if (exp && this.mode === 'map' && (input.wasPressed('Escape') || input.wasPressed('KeyM'))) {
+      this.resume();
     } else if (exp && (this.mode === 'pause' || this.mode === 'dialog') && input.wasPressed('Escape')) {
       this.resume();
     } else if (exp && this.mode === 'camp' && input.wasPressed('Escape')) {
@@ -368,6 +446,12 @@ export class Game {
     this.sky.update(now, focus, this.camera, weather, dt);
     this.snow.update(dt, this.camera.position, weather, this.sky.daylight);
     this.terrainMesh.update(this.camera.position);
+    this.rocks.update(exp ? exp.player.pos : this.camera.position);
+    {
+      const t = exp ? exp.clock.time : Date.now();
+      const top = exp ? exp.weather.sample(t, 8849) : { ...CALM, windKmh: 70, windDirDeg: 280 };
+      this.plume.update(top, this.sky.daylight, exp && this.mode === 'play' ? dt * exp.clock.rate : dt * 20);
+    }
     if (exp && this.mode === 'play') {
       const p = exp.player;
       const ahead = this.route.pointAt(Math.min(this.route.length, p.s + (exp.calledOff ? -80 : 80)));
@@ -384,6 +468,16 @@ export class Game {
         windKmh: weather.windKmh, breathRate: p.effects.breathRate, exertion: p.speedVisual > 0 ? 0.8 : 0.2,
         heartRate: p.effects.heartRate, spo2: p.physiology.spo2, sheltered: p.mode === 'tent', mask: p.gear.o2Flowing > 0,
       });
+    }
+    if (exp && this.mode === 'play' && !this.touch) {
+      this.minimapAccum += dt;
+      if (this.minimapAccum > 0.15) {
+        this.minimapAccum = 0;
+        const c = $<HTMLCanvasElement>('hud-minimap');
+        const ctx = c.getContext('2d')!;
+        const st = this.mapState();
+        this.map.draw(ctx, c.width, c.height, st, { x: st.player.x, z: st.player.z, mpp: 9 }, true);
+      }
     }
     this.debug.update();
     this.renderer.render(this.scene, this.camera);
