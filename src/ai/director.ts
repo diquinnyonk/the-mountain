@@ -82,7 +82,8 @@ export class Director {
     if (withSherpa) {
       const s = this.add(new Npc('pemba', 'Pemba Sherpa', 'sherpa', 'Your expedition',
         { suit: 0xffb300, pack: 0x5d4037, helmet: 0xff5722 }, this.rng, 7400));
-      s.s = Math.max(0, playerS + 6);
+      // Just ahead of you, or just below you if you start on the summit.
+      s.s = playerS > world.route.length - 20 ? playerS - 6 : Math.max(0, playerS + 6);
       s.lateral = 1.5;
       s.o2Bottles = 4;
       s.strength = 1.35;

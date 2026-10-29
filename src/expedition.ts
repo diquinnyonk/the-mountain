@@ -99,11 +99,12 @@ export class Expedition {
     const startId = this.startCamp;
     const startCamp = layout.landmarks[startId];
     // At the South Col you arrive in the afternoon, ready to rest before a night summit push.
-    const start = localMidnightUtc(settings.date) + (startId === 'c4' ? 14 : 7) * HOUR;
+    // The South Col in the afternoon, ready to rest before a night push; the summit at 08:00 after the night's climb.
+    const start = localMidnightUtc(settings.date) + (startId === 'c4' ? 14 : startId === 'summit' ? 8 : 7) * HOUR;
     this.startTime = start;
     this.clock = new GameClock(start);
     this.player = new Player(route, layout, this.rng);
-    this.player.placeAt(startCamp.s + (startId === 'bc' ? 14 : 6), 4);
+    this.player.placeAt(startId === 'summit' ? route.length - 3 : startCamp.s + (startId === 'bc' ? 14 : 6), startId === 'summit' ? 0 : 4);
     this.prevS = this.player.s;
     const g = this.player.gear;
     const ph = this.player.physiology;
@@ -122,12 +123,24 @@ export class Expedition {
       const idx = layout.sections.findIndex((sec) => sec.to === startId);
       for (let i = 0; i <= idx; i++) this.walked.add(i);
       this.player.maxS = startCamp.s;
-      this.lastCampId = startId;
-      if (startId === 'c3' || startId === 'c4') g.downSuit = true;
+      this.lastCampId = startCamp.camp ? startId : null;
+      if (startId === 'c3' || startId === 'c4' || startId === 'summit') g.downSuit = true;
       if (startId === 'c4') {
         // Resting on low-flow oxygen at the South Col.
         g.litres = 1080;
         g.flowLpm = 1;
+      }
+      if (startId === 'summit') {
+        // On top after climbing through the night: tired, dry, part-way through your oxygen, one spare.
+        this.player.summited = true;
+        this.summitTime = start;
+        this.player.maxS = route.length;
+        Object.assign(ph, { energy: 55, hydration: 55, coreTemp: 36.8, handTemp: 12, footTemp: 10 });
+        g.litres = 520;
+        g.bottles = 1;
+        g.flowLpm = 2;
+        g.water = 0.5;
+        g.rations = 3;
       }
     }
 
@@ -191,6 +204,7 @@ export class Expedition {
       this.restore(save);
     } else {
       if (startId === 'bc') this.log(`Arrived at Everest Base Camp, 5,364 m, on ${formatLocalDate(start)}.`);
+      else if (startId === 'summit') this.log(`On the summit of Everest, 8,849 m, at 08:00 on ${formatLocalDate(start)}, after climbing through the night from the South Col. Now the descent.`);
       else this.log(`Starting at ${startCamp.name}, ${Math.round(route.altitudeAt(startCamp.s)).toLocaleString()} m, on ${formatLocalDate(start)}, after climbing up over the previous weeks.`);
       if (settings.style === 'push') this.log('Five weeks of acclimatisation rotations are behind you. This is the summit push.');
       this.radio('Ruth (expedition leader)', this.welcomeText(), 'info');
@@ -216,7 +230,9 @@ export class Expedition {
         c2: 'Camp 3 next, up the Lhotse Face. Stay clipped in.',
         c3: 'Next, the Yellow Band and the Geneva Spur to the South Col. Go on oxygen for it.',
         c4: 'Eat, drink, sleep on low flow. Summit push leaves at 21:00. Turnaround is 13:00.',
+        summit: 'Take your photos, then start down. Most accidents happen on the descent. Watch your oxygen, and don\'t sit down until you\'re at the South Col.',
       };
+      if (this.startCamp === 'summit') return `You're on top of the world! ${advice.summit}`;
       return `You're at ${here}. ${advice[this.startCamp] ?? ''}`;
     }
     if (!this.season.inSeason) {

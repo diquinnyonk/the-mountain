@@ -5,7 +5,7 @@ import { describe } from '../weather/openmeteo';
 import { DAY, localMidnightUtc } from '../core/clock';
 import { seasonFor } from '../ai/director';
 
-export type StartCamp = 'bc' | 'c1' | 'c2' | 'c3' | 'c4';
+export type StartCamp = 'bc' | 'c1' | 'c2' | 'c3' | 'c4' | 'summit';
 
 export interface ExpeditionSettings {
   date: string;
@@ -72,9 +72,10 @@ export class PlanningScreen {
   }
 
   private updateStart(v: string) {
-    const names: Record<string, string> = { bc: 'Base Camp', c1: 'Camp 1', c2: 'Camp 2', c3: 'Camp 3', c4: 'the South Col' };
+    const names: Record<string, string> = { bc: 'Base Camp', c1: 'Camp 1', c2: 'Camp 2', c3: 'Camp 3', c4: 'the South Col', summit: 'the summit' };
     $('btn-start').textContent = `Start at ${names[v]}`;
     $('plan-start-hint').textContent = v === 'bc' ? 'The whole climb, from the foot of the Icefall.'
+      : v === 'summit' ? 'You topped out at 08:00 after climbing all night: tired, half a cylinder plus one spare. Get back down to the South Col alive.'
       : `You climbed here over the previous weeks: acclimatised for this camp, with the sections below already done.${v === 'c4' ? ' You start in the afternoon on low-flow oxygen.' : ''}`;
   }
 

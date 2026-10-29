@@ -312,13 +312,22 @@ export class Game {
     if (!exp) return;
     const st = this.mapState();
     const L = this.layout.landmarks;
-    const next = this.layout.camps.find((c) => c.s > exp.player.s + 60);
     const toSummit = this.route.length - exp.player.s;
     $('map-where').textContent = `${Math.round(st.player.altitude).toLocaleString()} m · ${st.place}`;
-    $('map-sub').textContent = [
-      next ? `${(Math.max(0, next.s - exp.player.s) / 1000).toFixed(1)} km of route to ${next.name}` : '',
-      toSummit > 15 ? `${(toSummit / 1000).toFixed(1)} km and ${Math.round(L.summit.altitude - st.player.altitude).toLocaleString()} m of climbing to the summit` : 'At the summit',
-    ].filter(Boolean).join(' · ');
+    if (exp.player.summited || exp.calledOff) {
+      // On the way down: distance to the camp below.
+      const below = [...this.layout.camps].reverse().find((c) => c.s < exp.player.s - 60);
+      $('map-sub').textContent = [
+        exp.player.summited ? 'Summited' : 'Expedition called off',
+        below ? `${((exp.player.s - below.s) / 1000).toFixed(1)} km and ${Math.round(st.player.altitude - this.route.altitudeAt(below.s)).toLocaleString()} m down to ${below.name}` : 'At Base Camp',
+      ].join(' · ');
+    } else {
+      const next = this.layout.camps.find((c) => c.s > exp.player.s + 60);
+      $('map-sub').textContent = [
+        next ? `${(Math.max(0, next.s - exp.player.s) / 1000).toFixed(1)} km of route to ${next.name}` : '',
+        toSummit > 15 ? `${(toSummit / 1000).toFixed(1)} km and ${Math.round(L.summit.altitude - st.player.altitude).toLocaleString()} m of climbing to the summit` : 'At the summit',
+      ].filter(Boolean).join(' · ');
+    }
     const fit = (c: HTMLCanvasElement) => {
       const dpr = Math.min(devicePixelRatio || 1, 2);
       c.width = c.clientWidth * dpr;
