@@ -65,3 +65,18 @@ describe('terrain and route', () => {
     expect(route.closest(p.x + 1, p.z).distance).toBeLessThan(2);
   });
 });
+
+describe('summit ridge mesh', () => {
+  it('every index points at a real vertex (Safari refuses to draw the mesh otherwise)', async () => {
+    const THREE = await import('three');
+    const { buildRidgeMesh } = await import('../src/world/ridgeMesh');
+    const mesh = buildRidgeMesh(terrain, route, layout, new THREE.MeshBasicMaterial());
+    const count = mesh.geometry.getAttribute('position').count;
+    const idx = mesh.geometry.getIndex()!.array;
+    let max = 0;
+    for (let i = 0; i < idx.length; i++) max = Math.max(max, idx[i]);
+    expect(max).toBeLessThan(count);
+    const pos = mesh.geometry.getAttribute('position').array as Float32Array;
+    expect(pos.every((v) => Number.isFinite(v))).toBe(true);
+  });
+});

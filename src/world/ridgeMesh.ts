@@ -22,7 +22,8 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
   for (let s = s0; s < end; s += 1) rows.push(s);
   rows.push(end);
   const n = rows.length * cols;
-  const pos = new Float32Array(n * 3 + cols * 2 * 3);
+  // Grid plus one skirt vertex per row on each long edge.
+  const pos = new Float32Array((n + rows.length * 2) * 3);
   const nor = new Float32Array(pos.length);
   const col = new Float32Array(pos.length);
   const p = new THREE.Vector3(), t = new THREE.Vector3(), c = new THREE.Color();
@@ -59,7 +60,6 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
   for (const side of [0, cols - 1]) {
     for (let r = 0; r < rows.length; r++) {
       const i = (r * cols + side) * 3;
-      if (k * 3 >= pos.length) break;
       pos.set([pos[i], pos[i + 1] - 3, pos[i + 2]], k * 3);
       nor.set([nor[i], nor[i + 1], nor[i + 2]], k * 3);
       col.set([col[i], col[i + 1], col[i + 2]], k * 3);
