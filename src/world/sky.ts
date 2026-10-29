@@ -78,7 +78,7 @@ export class SkySystem {
     this.daylight = day;
     const cloud = clamp(w.cloudAtAltitude, 0, 1);
     const storm = clamp(w.stormLevel, 0, 1);
-    const dim = 1 - 0.75 * Math.max(cloud * 0.8, storm);
+    const dim = 1 - 0.75 * Math.max(smoothstep(0.3, 1, cloud) * 0.8, storm);
 
     // Moonlight keeps nights navigable but dark; a headlamp does the rest.
     this.sun.intensity = lerp(0.06, 3.2, day) * dim;
@@ -91,7 +91,8 @@ export class SkySystem {
 
     (this.stars.material as THREE.PointsMaterial).opacity = (1 - smoothstep(-12, -2, elevation)) * (1 - cloud);
     const oc = this.overcast.material as THREE.MeshBasicMaterial;
-    oc.opacity = clamp(Math.max(cloud * 0.85, storm), 0, 0.97);
+    // Scattered cloud leaves the sky clear between clouds; only a real overcast greys it all.
+    oc.opacity = clamp(Math.max(smoothstep(0.4, 1, cloud) * 0.9, storm), 0, 0.97);
     oc.color.setHSL(0.6, 0.05, lerp(0.04, 0.72, day) * (1 - storm * 0.3));
 
     // A sea of cloud below when the lower levels are overcast and we are above them.
@@ -102,11 +103,21 @@ export class SkySystem {
     cs.map!.offset.x += dt * 0.00002 * w.windKmh;
 
     // Fog density from visibility (Koschmieder: ~3.9 / visibility).
+    // Exponential-squared fog reaches 2% contrast at density * distance = sqrt(3.9), so this fades
+    // things out at the reported visibility rather than at half of it.
     const vis = Math.max(20, w.visibilityM);
-    const target = 3.9 / vis;
+    const target = 1.98 / vis;
     this.fog.density = lerp(this.fog.density, target, clamp(dt * 0.8, 0, 1));
-    const fogDay = lerp(0.03, 0.78, day);
-    this.fog.color.setHSL(0.6, lerp(0.25, 0.05, storm), fogDay * lerp(1, 0.92, storm));
+    // Aerial perspective: distant ridges recede into blue-grey, not into the white of the snow.
+    // In a storm the air itself is white.
+    const fogDay = lerp(0.03, lerp(0.6, 0.8, storm), day);
+    this.fog.color.setHSL(0.59, lerp(0.34, 0.06, storm), fogDay);
+    // Thin air high on the mountain: a darker, deeper blue sky with less haze.
+    const high = smoothstep(5000, 8800, focus.y);
+    const u = this.sky.material.uniforms;
+    u.turbidity.value = lerp(1.6, 0.45, high);
+    u.rayleigh.value = lerp(0.65, 0.28, high);
+    u.mieCoefficient.value = lerp(0.004, 0.0012, high);
   }
 
   get sunDirection() {

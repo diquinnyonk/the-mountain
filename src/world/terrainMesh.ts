@@ -44,7 +44,7 @@ export function terrainColor(x: number, z: number, y: number, ny: number, routeD
   const iceBand = smoothstep(5400, 5480, y) * (1 - smoothstep(5980, 6080, y)) * (1 - smoothstep(150, 450, routeDist));
   const lhotse = smoothstep(6550, 6650, y) * (1 - smoothstep(7300, 7400, y)) * smoothstep(25, 35, slope) * (1 - smoothstep(300, 700, routeDist));
   const ice = clamp(Math.max(iceBand * (0.55 + 0.45 * n2), lhotse * 0.7), 0, 1);
-  const sr = 0.92 - ice * 0.2 + n * 0.02, sg = 0.94 - ice * 0.08 + n * 0.02, sb = 0.97 + n * 0.01;
+  const sr = 0.83 - ice * 0.2 + n * 0.02, sg = 0.86 - ice * 0.08 + n * 0.02, sb = 0.91 + n * 0.01;
   out.setRGB(r + (sr - r) * snow, g + (sg - g) * snow, b + (sb - b) * snow);
   return out;
 }
@@ -146,6 +146,7 @@ export class TerrainMesh {
       k++;
     };
     const heights = new Float32Array(n * n);
+    const rNear = Math.max(40, d * 2);
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n; i++) {
         const x = x0 + i * d, z = z0 + j * d;
@@ -155,6 +156,7 @@ export class TerrainMesh {
         const hz = h(x, z + e) - h(x, z - e);
         const l = Math.hypot(hx, 2 * e, hz);
         put(x, z, y, -hx / l, (2 * e) / l, -hz / l);
+        this.reliefShade(col, k - 1, x, z, y, rNear);
       }
     }
     const drop = 6 + d * 2;
@@ -197,6 +199,22 @@ export class TerrainMesh {
     return geo;
   }
 
+  /**
+   * Darken hollows and brighten crests (from how far a point sits above or below its
+   * surroundings, at two scales), so ridges and valleys read at a distance where
+   * per-vertex lighting alone goes flat.
+   */
+  private reliefShade(col: Float32Array, k: number, x: number, z: number, y: number, r: number) {
+    const t = this.terrain;
+    // Nearest DEM pixel is plenty at these radii, and far cheaper than bicubic sampling.
+    const P = (px: number, pz: number) => t.px(Math.round((px + t.halfW) / t.mpp - 0.5), Math.round((pz + t.halfH) / t.mpp - 0.5));
+    const ring = (rr: number) => (P(x + rr, z) + P(x - rr, z) + P(x, z + rr) + P(x, z - rr)) / 4;
+    const local = clamp(1 + (y - ring(r)) / 140, 0.72, 1.14);
+    const broad = clamp(1 + (y - ring(r * 7)) / 900, 0.82, 1.08);
+    const f = local * broad;
+    col[k * 3] *= f; col[k * 3 + 1] *= f; col[k * 3 + 2] *= f;
+  }
+
   /** The wider range at ~135 m resolution; dropped well below ground inside the detail map. */
   private buildFar(): THREE.Mesh {
     const t = this.terrain;
@@ -229,12 +247,25 @@ export class TerrainMesh {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex(new THREE.Uint32BufferAttribute(idx, 1));
-    geo.computeVertexNormals();
-    const nor = geo.getAttribute('normal') as THREE.BufferAttribute;
-    for (let k = 0; k < w * hgt; k++) {
-      terrainColor(pos[k * 3], pos[k * 3 + 2], pos[k * 3 + 1], nor.getY(k), 1e6, color);
-      col[k * 3] = color.r; col[k * 3 + 1] = color.g; col[k * 3 + 2] = color.b;
+    // Normals from the full-resolution data rather than the coarser mesh, so ridgelines stay crisp.
+    const fd = t.far!.data, fw = m.width, fh = m.height;
+    const F = (i: number, j: number) => fd[clamp(j, 0, fh - 1) * fw + clamp(i, 0, fw - 1)];
+    const nor = new Float32Array(w * hgt * 3);
+    const mppF = m.metresPerPixel;
+    for (let j = 0; j < hgt; j++) {
+      for (let i = 0; i < w; i++) {
+        const k = j * w + i, fi = i * step, fj = j * step;
+        const hx = (F(fi + 1, fj) - F(fi - 1, fj)) / (2 * mppF), hz = (F(fi, fj + 1) - F(fi, fj - 1)) / (2 * mppF);
+        const l = Math.hypot(hx, 1, hz);
+        nor[k * 3] = -hx / l; nor[k * 3 + 1] = 1 / l; nor[k * 3 + 2] = -hz / l;
+        terrainColor(pos[k * 3], pos[k * 3 + 2], pos[k * 3 + 1], 1 / l, 1e6, color);
+        const yRaw = F(fi, fj);
+        const ring = (r: number) => (F(fi + r, fj) + F(fi - r, fj) + F(fi, fj + r) + F(fi, fj - r)) / 4;
+        const f = clamp(1 + (yRaw - ring(2)) / 260, 0.7, 1.15) * clamp(1 + (yRaw - ring(8)) / 1100, 0.8, 1.1);
+        col[k * 3] = color.r * f; col[k * 3 + 1] = color.g * f; col[k * 3 + 2] = color.b * f;
+      }
     }
+    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const mesh = new THREE.Mesh(geo, this.material);
     mesh.matrixAutoUpdate = false;

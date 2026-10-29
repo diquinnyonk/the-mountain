@@ -48,7 +48,7 @@ float detailFoot;
   // Beyond the fade distance there's nothing to add: skip the noise entirely.
   if (detailFade > 0.001) {
   // Snow shows as bright vertex colour, rock as dark.
-  detailSnow = smoothstep(0.55, 0.85, dot(vColor, vec3(0.3333)));
+  detailSnow = smoothstep(0.45, 0.75, dot(vColor, vec3(0.3333)));
   // Snow: sastrugi ridges stretched along the prevailing westerly wind.
   float ridge = mix(0.5, 1.0 - abs(dNoise(vec3(p.x * 0.25, p.y * 0.4, p.z * 0.95)) * 2.0 - 1.0), BAND(1.05));
   detailGrain = mix(0.5, dNoise(p * 2.3), BAND(0.45));
