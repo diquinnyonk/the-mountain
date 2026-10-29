@@ -20,6 +20,7 @@ import type { WeatherSample } from './weather/model';
 import { BOTTLE_LITRES } from './player/gear';
 import { TouchControls, isTouchDevice, touchPrompt } from './ui/touch';
 import { RouteGuide } from './world/guide';
+import { buildRidgeMesh } from './world/ridgeMesh';
 import { DEV_TOOLS } from './core/devtools';
 import { RockScatter } from './world/scatter';
 import { SummitPlume } from './world/plume';
@@ -64,7 +65,7 @@ export class Game {
   private titleAngle = 0;
   private lastSettings: { s: ExpeditionSettings; w: WeatherLoad } | null = null;
   ready = false;
-  /** Dev-only game speed multiplier (1, 2 or 5). */
+  /** Dev-only game speed multiplier (1, 2, 5 or 10). */
   devSpeed = 1;
   readonly touch: TouchControls | null;
 
@@ -110,6 +111,7 @@ export class Game {
     this.layout = buildLayout(this.route);
     this.terrainMesh = new TerrainMesh(this.terrain, this.touch ? 0.6 : 1);
     this.scene.add(this.terrainMesh.group);
+    this.scene.add(buildRidgeMesh(this.terrain, this.route, this.layout, this.terrainMesh.material));
     this.features = new Features(this.route, this.layout);
     this.scene.add(this.features.group);
     this.guide = new RouteGuide(this.route);
@@ -417,7 +419,7 @@ export class Game {
     let timeRate = 1;
     if (exp && this.mode === 'play') {
       input.enabled = true;
-      if (DEV_TOOLS && input.wasPressed('KeyV')) this.setDevSpeed(this.devSpeed === 1 ? 2 : this.devSpeed === 2 ? 5 : 1);
+      if (DEV_TOOLS && input.wasPressed('KeyV')) this.setDevSpeed(this.devSpeed === 1 ? 2 : this.devSpeed === 2 ? 5 : this.devSpeed === 5 ? 10 : 1);
       const steps = DEV_TOOLS ? this.devSpeed : 1;
       for (let i = 0; i < steps && !exp.ending && !exp.dialog; i++) {
         // Extra substeps see held keys but not this frame's presses, so a tap acts once.

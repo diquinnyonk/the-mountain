@@ -35,6 +35,10 @@ export interface RouteData {
  * a bicubic DEM sample plus procedural detail that fades out near the route so
  * the trail stays walkable.
  */
+/** Half-width (m) of the detailed summit-ridge mesh, and how far past the summit it runs. */
+export const RIDGE_STRIP_HALF = 36;
+export const RIDGE_STRIP_PAST = 25;
+
 export class Terrain {
   readonly halfW: number;
   readonly halfH: number;
@@ -173,7 +177,29 @@ export class Terrain {
   }
 
   /** Sculpted height near the ridge, and how strongly it replaces the DEM. */
-  private ridgeSculpt(x: number, z: number, k: number): { h: number; w: number } | null {
+  /**
+   * Position relative to the summit ridge: d = distance from the summit along the route
+   * (negative past it), lat = signed distance from the crest (positive east). Null away from it.
+   */
+  ridgeCoords(x: number, z: number): { d: number; lat: number } | null {
+    const k = this.nearestRouteIndex(x, z);
+    if (k < this.ridgeStart) return null;
+    const p = this.projectRidge(x, z, k);
+    return p ? { d: p.d, lat: p.lat } : null;
+  }
+
+  /** The detailed ridge strip covers the crest; sink the coarse terrain just out of sight beneath it. */
+  renderSink(x: number, z: number): number {
+    const r = this.ridgeCoords(x, z);
+    if (!r || r.d < -RIDGE_STRIP_PAST || r.d > Terrain.RIDGE_LENGTH) return 0;
+    const a = Math.abs(r.lat);
+    if (a >= RIDGE_STRIP_HALF) return 0;
+    return 2.5 * (1 - smoothstep(RIDGE_STRIP_HALF - 5, RIDGE_STRIP_HALF - 1, a)) *
+      (1 - smoothstep(Terrain.RIDGE_LENGTH - 40, Terrain.RIDGE_LENGTH, r.d)) *
+      (1 - smoothstep(RIDGE_STRIP_PAST - 5, RIDGE_STRIP_PAST - 1, -r.d));
+  }
+
+  private projectRidge(x: number, z: number, k: number) {
     const pts = this.route.points;
     const n = pts.length;
     // Project onto the nearer of the two segments around k.
@@ -195,7 +221,12 @@ export class Terrain {
         best = { d: along, lat, dist, crest };
       }
     }
-    if (best.dist === Infinity) return null;
+    return best.dist === Infinity ? null : best;
+  }
+
+  private ridgeSculpt(x: number, z: number, k: number): { h: number; w: number } | null {
+    const best = this.projectRidge(x, z, k);
+    if (!best) return null;
     let crest = best.d < 0 ? Terrain.profileAt(0) - Math.max(0, -best.d - 3) * 1.1 : best.d < 340 ? Terrain.profileAt(best.d) : best.crest;
     // A narrow walkable crest, then steep faces: the Kangshung (east) steeper than the Southwest Face.
     const a = Math.abs(best.lat);

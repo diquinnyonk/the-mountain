@@ -131,7 +131,8 @@ export class TerrainMesh {
     const z0 = cj * CHUNK_PX * mpp - t.halfH;
     const d = step * mpp;
     const detailed = step <= 1;
-    const h = (x: number, z: number) => (detailed ? t.heightAt(x, z) : t.baseAt(x, z));
+    // Under the summit-ridge strip the coarse terrain sinks out of sight (see RidgeMesh).
+    const h = (x: number, z: number) => (detailed ? t.heightAt(x, z) : t.baseAt(x, z)) - t.renderSink(x, z);
     // Grid plus a one-vertex skirt ring hanging below the edges to hide LOD cracks.
     const total = n * n + 4 * n;
     const pos = new Float32Array(total * 3);

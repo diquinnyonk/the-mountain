@@ -348,25 +348,7 @@ export class Features {
   private buildSummit() {
     const L = this.layout.landmarks;
     const p = new THREE.Vector3(), t = new THREE.Vector3();
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), col = new THREE.Color();
-
-    // Cornices along the Cornice Traverse: wind-built snow lips overhanging the Kangshung Face.
-    const blobs: THREE.Matrix4[] = [];
-    for (let s = L.southSummit.s + 15; s < L.hillaryStep.s - 12; s += this.rng.range(1.2, 2.4)) {
-      this.route.pointAt(s, p);
-      this.route.tangentAt(s, t);
-      const lat = this.rng.range(1.3, 2.1);
-      const x = p.x - t.z * lat, z = p.z + t.x * lat;
-      e.set(this.rng.range(-0.15, 0.15), Math.atan2(t.x, t.z) + this.rng.range(-0.3, 0.3), this.rng.range(0.2, 0.45));
-      q.setFromEuler(e);
-      sc.set(this.rng.range(0.6, 1.2), this.rng.range(0.22, 0.45), this.rng.range(0.9, 1.8));
-      blobs.push(new THREE.Matrix4().compose(new THREE.Vector3(x, p.y - this.rng.range(0.35, 0.6), z), q, sc));
-    }
-    const snow = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6), new THREE.MeshStandardMaterial({ color: 0xe9eef5, roughness: 0.9 }), blobs.length);
-    blobs.forEach((b, i) => snow.setMatrixAt(i, b));
-    snow.castShadow = true;
-    snow.receiveShadow = true;
-    this.group.add(snow);
+    const q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), col = new THREE.Color();
 
     // Old fixed ropes from previous seasons alongside this year's, up the last stretch.
     const ropeCols = [0xf4c20d, 0xd62828, 0x2a9d47, 0x1a73e8];
@@ -384,39 +366,97 @@ export class Features {
       this.group.add(line);
     });
 
-    // The summit: a few square metres of snow under heaps of prayer flags, katas and junk.
+    // The summit: a few square metres of snow under heaps of prayer flags and katas.
     const top = this.route.pointAt(this.route.length);
-    const flagGeo = new THREE.PlaneGeometry(0.32, 0.26).rotateX(-Math.PI / 2);
-    const lying = 420;
-    const flags = new THREE.InstancedMesh(flagGeo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 1 }), lying);
-    for (let k = 0; k < lying; k++) {
-      // Dense on the very top, thinning down the slopes around it.
-      const a = this.rng.range(0, Math.PI * 2), r = Math.pow(this.rng.next(), 1.7) * 6.5;
-      const x = top.x + Math.cos(a) * r, z = top.z + Math.sin(a) * r;
-      e.set(this.rng.range(-0.5, 0.5), this.rng.range(0, Math.PI * 2), this.rng.range(-0.5, 0.5));
-      q.setFromEuler(e);
-      const heap = r < 1.6 ? this.rng.range(0, 0.45) : this.rng.range(0, 0.08);
-      m.compose(new THREE.Vector3(x, this.ground(x, z) + 0.03 + heap, z), q, sc.set(1, 1, 1));
-      flags.setMatrixAt(k, m);
-      flags.setColorAt(k, col.setHex(this.rng.chance(0.12) ? 0xf5f0e6 : PRAYER_COLOURS[k % PRAYER_COLOURS.length]));
+    const up = new THREE.Vector3(0, 1, 0), nrm = { x: 0, y: 1, z: 0 }, nv = new THREE.Vector3();
+    const qYaw = new THREE.Quaternion(), qTilt = new THREE.Quaternion();
+    const flagGeo = new THREE.PlaneGeometry(0.3, 0.24).rotateX(-Math.PI / 2);
+    const placed: THREE.Matrix4[] = [];
+    const colours: number[] = [];
+    const flagColour = (k: number) => (this.rng.chance(0.12) ? 0xf5f0e6 : PRAYER_COLOURS[k % PRAYER_COLOURS.length]);
+    // A flag lying flat on the snow, following its slope.
+    const lay = (x: number, z: number, yaw: number, lift: number, k: number) => {
+      this.route.terrain.normalAt(x, z, nrm, 0.4);
+      qTilt.setFromUnitVectors(up, nv.set(nrm.x, nrm.y, nrm.z));
+      qYaw.setFromAxisAngle(up, yaw);
+      q.copy(qTilt).multiply(qYaw);
+      placed.push(new THREE.Matrix4().compose(new THREE.Vector3(x, this.ground(x, z) + 0.03 + lift, z), q, sc.set(1, 1, 1)));
+      colours.push(flagColour(k));
+    };
+    // The heap on the top itself, then a thinning scatter where the ground is walkable.
+    for (let k = 0; k < 140; k++) {
+      const a = this.rng.range(0, Math.PI * 2), r = Math.sqrt(this.rng.next()) * 1.3;
+      lay(top.x + Math.cos(a) * r, top.z + Math.sin(a) * r, this.rng.range(0, 6.3), (1.3 - r) * 0.12 * this.rng.next(), k);
     }
-    flags.receiveShadow = true;
-    this.group.add(flags);
-    // Poles carrying flag strings that drape away down the slopes.
+    for (let k = 0; k < 160; k++) {
+      const a = this.rng.range(0, Math.PI * 2), r = 1.3 + Math.pow(this.rng.next(), 1.5) * 5;
+      const x = top.x + Math.cos(a) * r, z = top.z + Math.sin(a) * r;
+      if (this.route.terrain.slopeAt(x, z) > 32) continue;
+      lay(x, z, this.rng.range(0, 6.3), 0, k);
+    }
+
+    // Poles on the top carrying strings of flags that run down onto the snow and lie along it.
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.6, roughness: 0.4 });
+    const poles: THREE.Vector3[] = [];
     for (let k = 0; k < 3; k++) {
       const a = (k / 3) * Math.PI * 2 + 0.4;
-      const x = top.x + Math.cos(a) * 0.9, z = top.z + Math.sin(a) * 0.9;
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.4, 5), poleMat);
-      pole.position.set(x, this.ground(x, z) + 0.6, z);
-      pole.rotation.set(this.rng.range(-0.2, 0.2), 0, this.rng.range(-0.2, 0.2));
+      const x = top.x + Math.cos(a) * 0.7, z = top.z + Math.sin(a) * 0.7;
+      const base = new THREE.Vector3(x, this.ground(x, z), z);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5, 5), poleMat);
+      pole.position.set(x, base.y + 0.75, z);
       this.group.add(pole);
+      poles.push(base.add(new THREE.Vector3(0, 1.45, 0)));
     }
-    for (let k = 0; k < 7; k++) {
-      const a = this.rng.range(0, Math.PI * 2), len = this.rng.range(6, 14);
-      const ax = top.x + Math.cos(a) * 0.5, az = top.z + Math.sin(a) * 0.5;
-      const bx = top.x + Math.cos(a) * len, bz = top.z + Math.sin(a) * len;
-      this.prayerFlags(new THREE.Vector3(ax, this.ground(ax, az) + 0.9, az), new THREE.Vector3(bx, this.ground(bx, bz) + 0.1, bz));
-    }
+    // Strings run from the pole tops down onto the snow, then lie along the crest beside the trail
+    // (following the ridge, not straight lines that would hang off it over the faces).
+    const hanging = new THREE.PlaneGeometry(0.28, 0.3).translate(0, -0.15, 0);
+    const hangM: THREE.Matrix4[] = [], hangC: number[] = [];
+    const line = new THREE.LineBasicMaterial({ color: 0x8a7f72 });
+    const strings: [number, number, number][] = [
+      // pole, lateral offset from the trail (m), length down the ridge (m)
+      [0, -0.75, 34], [1, 0.8, 26], [2, -0.45, 18], [0, 1.1, 12],
+    ];
+    const pt = new THREE.Vector3(), tg = new THREE.Vector3();
+    strings.forEach(([pi, lat, len], si) => {
+      const from = poles[pi];
+      const pts: THREE.Vector3[] = [from.clone()];
+      for (let d = 0.4; d <= len; d += 0.4) {
+        this.route.pointAt(this.route.length - d, pt);
+        this.route.tangentAt(this.route.length - d, tg);
+        // Blend from the pole out onto the line beside the trail over the first couple of metres.
+        const w = Math.min(1, d / 2.5);
+        const x = from.x + (pt.x - tg.z * lat - from.x) * w, z = from.z + (pt.z + tg.x * lat - from.z) * w;
+        const g = this.ground(x, z) + 0.04;
+        const air = from.y - d * 0.9 - d * d * 0.12;
+        pts.push(new THREE.Vector3(x, Math.max(g, air), z));
+      }
+      this.group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), line));
+      // Flags tied along it every ~0.4 m: hanging where the string is in the air, flat on the snow where it rests.
+      for (let i = 2; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const yaw = Math.atan2(b.x - a.x, b.z - a.z);
+        if (b.y - this.ground(b.x, b.z) > 0.25) {
+          q.setFromEuler(e.set(0, yaw + Math.PI / 2, this.rng.range(-0.1, 0.1)));
+          hangM.push(new THREE.Matrix4().compose(b.clone(), q, sc.set(1, 1, 1)));
+          hangC.push(flagColour(i + si));
+        } else {
+          lay(b.x, b.z, yaw + this.rng.range(-0.15, 0.15), 0, i + si);
+        }
+      }
+    });
+    const flags = new THREE.InstancedMesh(flagGeo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), placed.length);
+    placed.forEach((mm, i) => {
+      flags.setMatrixAt(i, mm);
+      flags.setColorAt(i, col.setHex(colours[i]));
+    });
+    flags.receiveShadow = true;
+    this.group.add(flags);
+    const hang = new THREE.InstancedMesh(hanging, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 1 }), hangM.length);
+    hangM.forEach((mm, i) => {
+      hang.setMatrixAt(i, mm);
+      hang.setColorAt(i, col.setHex(hangC[i]));
+    });
+    hang.castShadow = true;
+    this.group.add(hang);
   }
 }
