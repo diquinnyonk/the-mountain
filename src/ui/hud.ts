@@ -63,13 +63,17 @@ export class Hud {
     const radioKey = `${s.radio.length}:${last?.time}:${last?.text}`;
     if (radioKey !== this.lastRadio) {
       this.lastRadio = radioKey;
-      $('hud-radio').innerHTML = s.radio.slice(-6).map((m) =>
+      $('hud-radio').innerHTML = s.radio.slice(document.body.classList.contains('touch') ? -1 : -6).map((m) =>
         `<div class="msg ${m.kind}"><time>${formatLocalTime(m.time)}</time><b>${esc(m.from)}:</b> ${esc(m.text)}</div>`).join('');
     }
     this.accum += dt;
     if (this.accum < 0.15) return;
     this.accum = 0;
     const w = s.weather, p = s.physiology, g = s.gear;
+    if (document.body.classList.contains('touch')) {
+      this.compact(s);
+      return;
+    }
     $('hud-location').innerHTML = `
       <div class="alt">${Math.round(s.altitude).toLocaleString()} m</div>
       <div class="place">${esc(s.place)}</div>
@@ -96,6 +100,31 @@ export class Hud {
       `<div class="bar"><span>Water · food</span><span>${g.water.toFixed(1)} L · ${g.rations} rations</span><span class="val">${s.clipped ? '🔗' : ''}</span></div>` +
       o2;
     this.compass(s);
+  }
+
+  /** Phones: one small location/weather card and a narrow strip of vitals. */
+  private compact(s: HudState) {
+    const w = s.weather, p = s.physiology, g = s.gear;
+    const vis = w.visibilityM > 9999 ? `${Math.round(w.visibilityM / 1000)} km` : `${Math.round(w.visibilityM)} m`;
+    const storm = w.stormLevel > 0.6 ? ' · <span class="storm">STORM</span>' : w.event ? ` · <span class="storm">${w.event.kind.toUpperCase()}</span>` : '';
+    $('hud-location').innerHTML = `
+      <div class="alt">${Math.round(s.altitude).toLocaleString()} m <span class="place">${esc(s.place)}</span></div>
+      <div class="sub">${formatLocalTime(s.now)} · ${formatLocalDate(s.now)} · ×${Math.round(s.timeRate)}</div>
+      <div class="sub">${Math.round(w.tempC)}°C (feels ${Math.round(w.windChillC)}) · ${Math.round(w.windKmh)} km/h · ${vis}${storm}</div>`;
+    $('hud-weather').innerHTML = '';
+    $('hud-conditions').innerHTML = conditionChips(s).slice(0, 3).join('');
+    const bar = (label: string, v: number, text: string) => `
+      <div class="bar"><span>${label}</span><div class="track"><div class="fill" style="width:${clamp(v, 0, 1) * 100}%;background:${barColor(v)}"></div></div><span class="val">${text}</span></div>`;
+    const o2 = g.litres > 0 || g.bottles > 0
+      ? `<div class="vit-o2"><span>O₂ ${g.flowLpm}</span><span>${Math.round(g.litres)} L +${g.bottles}${s.clipped ? ' · 🔗' : ''}</span></div>`
+      : s.clipped ? '<div class="vit-o2"><span>🔗 clipped</span></div>' : '';
+    $('hud-vitals').innerHTML =
+      bar('SpO₂', (p.spo2 - 40) / 58, `${Math.round(p.spo2)}%`) +
+      bar('Energy', p.energy / 100, `${Math.round(p.energy)}`) +
+      bar('Water', p.hydration / 100, `${Math.round(p.hydration)}`) +
+      bar('Warmth', (p.coreTemp - 30) / 7.2, `${p.coreTemp.toFixed(1)}°`) +
+      bar('Hands', (Math.min(p.handTemp, p.footTemp) + 10) / 40, `${Math.round(Math.min(p.handTemp, p.footTemp))}°`) +
+      o2;
   }
 
   private compass(s: HudState) {

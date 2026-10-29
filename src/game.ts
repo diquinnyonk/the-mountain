@@ -480,7 +480,7 @@ export class Game {
         heartRate: p.effects.heartRate, spo2: p.physiology.spo2, sheltered: p.mode === 'tent', mask: p.gear.o2Flowing > 0,
       });
     }
-    if (exp && this.mode === 'play' && !this.touch) {
+    if (exp && this.mode === 'play') {
       this.minimapAccum += dt;
       if (this.minimapAccum > 0.15) {
         this.minimapAccum = 0;

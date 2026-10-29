@@ -31,6 +31,7 @@ export class TouchControls {
     this.stick.appendChild(this.knob);
     this.root.innerHTML = `
       <button class="tbtn menu" data-tap="Escape" aria-label="Menu">☰</button>
+      <button class="tbtn mapbtn" data-tap="KeyM" aria-label="Map">Map</button>
       <div class="cluster">
         <button class="tbtn small" data-toggle-pack>Pack</button>
         <button class="tbtn small" data-tap="KeyR">Rest</button>

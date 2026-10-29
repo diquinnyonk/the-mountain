@@ -187,3 +187,43 @@ body.touch #hud-alert { font-size: 19px; }
   body.touch #hud-weather { top: calc(96px + env(safe-area-inset-top, 0px)); }
   #touch .pack { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); right: calc(200px + env(safe-area-inset-right, 0px)); }
 }
+
+/* Compact phone HUD (overrides the touch layout above) */
+body.touch #hud-location { padding: 5px 8px; border-radius: 8px; max-width: calc(100vw - 150px); }
+body.touch #hud-location .alt { font-size: 16px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+body.touch #hud-location .place { font-size: 11px; margin: 0; }
+body.touch #hud-location .sub { font-size: 10px; line-height: 1.35; }
+body.touch #hud-location .storm { color: var(--bad); font-weight: 700; }
+body.touch #hud-weather { display: none; }
+body.touch #hud-vitals { width: 124px; font-size: 9.5px; padding: 5px 7px; border-radius: 8px; }
+body.touch .bar { grid-template-columns: 38px 1fr 28px; gap: 4px; margin: 1px 0; }
+body.touch .bar .track { height: 5px; }
+body.touch .vit-o2 { margin-top: 3px; padding-top: 3px; font-size: 9.5px; }
+body.touch #hud-conditions { top: calc(124px + env(safe-area-inset-top, 0px)); gap: 3px; }
+body.touch .cond { font-size: 9.5px; padding: 2px 7px; }
+body.touch #hud-radio { max-height: 34px; font-size: 10px; padding: 4px 8px; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); border-radius: 8px; }
+body.touch #hud-prompt { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); font-size: 12px; padding: 5px 10px; }
+body.touch #hud-alert { font-size: 16px; }
+body.touch #hud-minimap { display: block; width: 86px; height: 86px; right: auto; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: auto; top: calc(74px + env(safe-area-inset-top, 0px)); border-radius: 8px; }
+#touch .menu { width: 36px; height: 36px; font-size: 16px; top: calc(10px + env(safe-area-inset-top, 0px)); left: auto; right: calc(142px + env(safe-area-inset-right, 0px)); transform: none; }
+#touch .mapbtn { position: absolute; top: calc(52px + env(safe-area-inset-top, 0px)); right: calc(142px + env(safe-area-inset-right, 0px)); width: 36px; height: 36px; padding: 0; font-size: 10px; }
+#touch .cluster { gap: 6px; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+#touch .small { padding: 6px 10px; font-size: 11px; min-width: 50px; }
+#touch .action { width: 70px; height: 70px; font-size: 12px; }
+#touch .pack { bottom: calc(118px + env(safe-area-inset-bottom, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); }
+#touch .stick { width: 100px; height: 100px; margin: -50px 0 0 -50px; top: calc(100% - 74px - env(safe-area-inset-bottom, 0px)); }
+#touch .knob { width: 42px; height: 42px; margin: -21px 0 0 -21px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  body.touch #hud-radio { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  body.touch #hud-prompt { bottom: calc(52px + env(safe-area-inset-bottom, 0px)); }
+}
+/* Full map on a phone */
+@media (max-width: 640px) {
+  .map-card { padding: 12px; }
+  .map-head h2 { font-size: 18px; }
+  #map-canvas { height: 52vh; }
+  #map-profile { height: 96px; }
+  .map-legend { font-size: 11px; }
+}
+body.touch #dev-speed { left: calc(10px + env(safe-area-inset-left, 0px)); top: calc(166px + env(safe-area-inset-top, 0px)); transform: none; font-size: 9px; padding: 2px 3px 2px 7px; gap: 2px; }
+body.touch #dev-speed button { padding: 1px 6px; font-size: 9px; }
