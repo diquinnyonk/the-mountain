@@ -38,7 +38,9 @@ export function terrainColor(x: number, z: number, y: number, ny: number, routeD
   r += moraine * 0.1; g += moraine * 0.09; b += moraine * 0.08;
   // Snow holds on gentler slopes; the snow line is ragged.
   const snowLine = smoothstep(5250, 5550, y + n * 160);
-  const hold = smoothstep(52 + n * 8, 36 + n * 8, slope);
+  // High on the summit pyramid, wind-packed snow clings to much steeper ground.
+  const hi = smoothstep(8300, 8700, y);
+  const hold = smoothstep(52 + 12 * hi + n * 8, 36 + 14 * hi + n * 8, slope);
   const snow = clamp(snowLine * hold + (y > 7000 ? 0.15 * hold : 0), 0, 1);
   // Glacier ice in the Icefall and on the Lhotse Face shows blue through thin snow.
   const iceBand = smoothstep(5400, 5480, y) * (1 - smoothstep(5980, 6080, y)) * (1 - smoothstep(150, 450, routeDist));
@@ -129,7 +131,7 @@ export class TerrainMesh {
     const z0 = cj * CHUNK_PX * mpp - t.halfH;
     const d = step * mpp;
     const detailed = step <= 1;
-    const h = (x: number, z: number) => (detailed ? t.heightAt(x, z) : t.demAt(x, z));
+    const h = (x: number, z: number) => (detailed ? t.heightAt(x, z) : t.baseAt(x, z));
     // Grid plus a one-vertex skirt ring hanging below the edges to hide LOD cracks.
     const total = n * n + 4 * n;
     const pos = new Float32Array(total * 3);

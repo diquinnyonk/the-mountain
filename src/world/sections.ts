@@ -72,6 +72,9 @@ export function buildLayout(route: Route): RouteLayout {
     if (id === 'bc') s = 0;
     else if (id === 'summit') s = route.length;
     else if (id === 'c4') s = route.ss[route.terrain.route.southColIndex];
+    // The top of the ridge is sculpted to the real profile: place these by distance from the summit.
+    else if (id === 'southSummit') s = highestNear(route, route.length - 380, route.length - 290);
+    else if (id === 'hillaryStep') s = steepestNear(route, route.length - 260, route.length - 120);
     else s = route.sAtAltitude(altitude, from);
     landmarks[id] = { id, name, altitude, s, camp };
     from = s;
@@ -117,6 +120,26 @@ export function buildLayout(route: Route): RouteLayout {
       { s0: L.southSummit.s, s1: L.summit.s - 30, name: 'the Hillary Step' },
     ],
   };
+}
+
+/** Route distance of the highest point in a range (the South Summit). */
+function highestNear(route: Route, s0: number, s1: number): number {
+  let best = s0, h = -Infinity;
+  for (let s = s0; s <= s1; s += 1) {
+    const a = route.altitudeAt(s);
+    if (a > h) { h = a; best = s; }
+  }
+  return best;
+}
+
+/** Route distance of the steepest point in a range (the Hillary Step). */
+function steepestNear(route: Route, s0: number, s1: number): number {
+  let best = s0, g = -Infinity;
+  for (let s = s0; s <= s1; s += 1) {
+    const grade = route.gradeAt(s);
+    if (grade > g) { g = grade; best = s; }
+  }
+  return best;
 }
 
 export function sectionAt(layout: RouteLayout, s: number): Section {

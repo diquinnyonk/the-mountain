@@ -319,39 +319,104 @@ export class Features {
   }
 
   private buildHillaryStep() {
+    // The step itself is sculpted into the terrain; this is its rock: blocks along the
+    // Southwest Face (west) side of the crest, and a few loose ones below.
     const hs = this.layout.landmarks.hillaryStep;
     const p = new THREE.Vector3(), t = new THREE.Vector3();
-    const rock = new THREE.MeshStandardMaterial({ color: 0x3d3a38, roughness: 0.95, flatShading: true });
+    const rock = new THREE.MeshStandardMaterial({ color: 0x35322f, roughness: 0.95, flatShading: true });
     const geo = new THREE.DodecahedronGeometry(1, 0);
-    for (let k = 0; k < 16; k++) {
-      const s = hs.s + this.rng.range(-25, 15);
+    for (let k = 0; k < 14; k++) {
+      const s = hs.s + this.rng.range(-14, 6);
       this.route.pointAt(s, p);
       this.route.tangentAt(s, t);
-      const size = this.rng.range(0.7, 2.4);
-      const lat = (k % 2 ? 1 : -1) * (2.5 + size + this.rng.range(0, 5));
+      const size = this.rng.range(0.6, 2.2);
+      const lat = -(1.6 + size * 0.7 + this.rng.range(0, 3)); // west of the crest
       const x = p.x - t.z * lat, z = p.z + t.x * lat;
       const r = new THREE.Mesh(geo, rock);
-      r.scale.set(size, size * this.rng.range(0.8, 2.2), size);
-      r.position.set(x, this.ground(x, z) + size * 0.3, z);
+      r.scale.set(size, size * this.rng.range(1, 2.2), size);
+      r.position.set(x, this.ground(x, z) + size * 0.4, z);
       r.rotation.set(this.rng.next(), this.rng.next() * 6, this.rng.next());
       r.castShadow = true;
       this.group.add(r);
     }
   }
 
+  /**
+   * The top: snow cornices overhanging the Kangshung Face along the traverse, years of
+   * old fixed ropes on the final ridge, and the summit itself buried in prayer flags.
+   */
   private buildSummit() {
-    const p = this.route.pointAt(this.route.length - 1);
-    const geo = new THREE.PlaneGeometry(0.3, 0.3);
-    const pile = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide }), 60);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
-    for (let k = 0; k < 60; k++) {
-      const a = this.rng.range(0, Math.PI * 2), r = this.rng.range(0, 1.4);
-      q.setFromEuler(new THREE.Euler(this.rng.next() * 3, this.rng.next() * 3, this.rng.next() * 3));
-      m.compose(new THREE.Vector3(Math.cos(a) * r, this.rng.range(0, 0.9), Math.sin(a) * r), q, new THREE.Vector3(1, 1, 1));
-      pile.setMatrixAt(k, m);
-      pile.setColorAt(k, col.setHex(PRAYER_COLOURS[k % 5]));
+    const L = this.layout.landmarks;
+    const p = new THREE.Vector3(), t = new THREE.Vector3();
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), col = new THREE.Color();
+
+    // Cornices along the Cornice Traverse: wind-built snow lips overhanging the Kangshung Face.
+    const blobs: THREE.Matrix4[] = [];
+    for (let s = L.southSummit.s + 15; s < L.hillaryStep.s - 12; s += this.rng.range(1.2, 2.4)) {
+      this.route.pointAt(s, p);
+      this.route.tangentAt(s, t);
+      const lat = this.rng.range(1.3, 2.1);
+      const x = p.x - t.z * lat, z = p.z + t.x * lat;
+      e.set(this.rng.range(-0.15, 0.15), Math.atan2(t.x, t.z) + this.rng.range(-0.3, 0.3), this.rng.range(0.2, 0.45));
+      q.setFromEuler(e);
+      sc.set(this.rng.range(0.6, 1.2), this.rng.range(0.22, 0.45), this.rng.range(0.9, 1.8));
+      blobs.push(new THREE.Matrix4().compose(new THREE.Vector3(x, p.y - this.rng.range(0.35, 0.6), z), q, sc));
     }
-    pile.position.set(p.x, this.ground(p.x, p.z), p.z);
-    this.group.add(pile);
+    const snow = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6), new THREE.MeshStandardMaterial({ color: 0xe9eef5, roughness: 0.9 }), blobs.length);
+    blobs.forEach((b, i) => snow.setMatrixAt(i, b));
+    snow.castShadow = true;
+    snow.receiveShadow = true;
+    this.group.add(snow);
+
+    // Old fixed ropes from previous seasons alongside this year's, up the last stretch.
+    const ropeCols = [0xf4c20d, 0xd62828, 0x2a9d47, 0x1a73e8];
+    ropeCols.forEach((c, i) => {
+      const off = [-0.35, 0.25, -0.6, 0.45][i];
+      const pts: THREE.Vector3[] = [];
+      for (let s = L.southSummit.s + 10 + i * 15; s <= this.route.length - 1; s += 1.5) {
+        this.route.pointAt(s, p);
+        this.route.tangentAt(s, t);
+        const wob = Math.sin(s * 0.13 + i) * 0.25;
+        const x = p.x - t.z * (off + wob), z = p.z + t.x * (off + wob);
+        pts.push(new THREE.Vector3(x, this.ground(x, z) + 0.04, z));
+      }
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: c }));
+      this.group.add(line);
+    });
+
+    // The summit: a few square metres of snow under heaps of prayer flags, katas and junk.
+    const top = this.route.pointAt(this.route.length);
+    const flagGeo = new THREE.PlaneGeometry(0.32, 0.26).rotateX(-Math.PI / 2);
+    const lying = 420;
+    const flags = new THREE.InstancedMesh(flagGeo, new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 1 }), lying);
+    for (let k = 0; k < lying; k++) {
+      // Dense on the very top, thinning down the slopes around it.
+      const a = this.rng.range(0, Math.PI * 2), r = Math.pow(this.rng.next(), 1.7) * 6.5;
+      const x = top.x + Math.cos(a) * r, z = top.z + Math.sin(a) * r;
+      e.set(this.rng.range(-0.5, 0.5), this.rng.range(0, Math.PI * 2), this.rng.range(-0.5, 0.5));
+      q.setFromEuler(e);
+      const heap = r < 1.6 ? this.rng.range(0, 0.45) : this.rng.range(0, 0.08);
+      m.compose(new THREE.Vector3(x, this.ground(x, z) + 0.03 + heap, z), q, sc.set(1, 1, 1));
+      flags.setMatrixAt(k, m);
+      flags.setColorAt(k, col.setHex(this.rng.chance(0.12) ? 0xf5f0e6 : PRAYER_COLOURS[k % PRAYER_COLOURS.length]));
+    }
+    flags.receiveShadow = true;
+    this.group.add(flags);
+    // Poles carrying flag strings that drape away down the slopes.
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.6, roughness: 0.4 });
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2 + 0.4;
+      const x = top.x + Math.cos(a) * 0.9, z = top.z + Math.sin(a) * 0.9;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.4, 5), poleMat);
+      pole.position.set(x, this.ground(x, z) + 0.6, z);
+      pole.rotation.set(this.rng.range(-0.2, 0.2), 0, this.rng.range(-0.2, 0.2));
+      this.group.add(pole);
+    }
+    for (let k = 0; k < 7; k++) {
+      const a = this.rng.range(0, Math.PI * 2), len = this.rng.range(6, 14);
+      const ax = top.x + Math.cos(a) * 0.5, az = top.z + Math.sin(a) * 0.5;
+      const bx = top.x + Math.cos(a) * len, bz = top.z + Math.sin(a) * len;
+      this.prayerFlags(new THREE.Vector3(ax, this.ground(ax, az) + 0.9, az), new THREE.Vector3(bx, this.ground(bx, bz) + 0.1, bz));
+    }
   }
 }

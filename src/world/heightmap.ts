@@ -54,6 +54,7 @@ export class Terrain {
     this.routeDist = new Float32Array(n).fill(1e6);
     this.routeIdx = new Int32Array(n).fill(-1);
     this.buildRouteMask(40);
+    this.prepareSummitRidge();
   }
 
   get width() {
@@ -100,7 +101,115 @@ export class Terrain {
   }
 
   heightAt(x: number, z: number): number {
-    return this.demAt(x, z) + this.detailAt(x, z);
+    return this.baseAt(x, z) + this.detailAt(x, z);
+  }
+
+  /** DEM height, with the summit ridge sculpted where the DEM is too coarse to show it. */
+  baseAt(x: number, z: number): number {
+    const dem = this.demAt(x, z);
+    const k = this.nearestRouteIndex(x, z);
+    if (k < this.ridgeStart) return dem;
+    const sc = this.ridgeSculpt(x, z, k);
+    return sc ? dem + (sc.h - dem) * sc.w : dem;
+  }
+
+  // ----- The summit ridge -----
+  // The DEM (~30 m) rounds Everest's summit pyramid into a dome. From the Balcony up we
+  // replace it near the route with a knife-edge ridge whose crest follows the trail and
+  // whose profile follows the real one: South Summit, the notch, the Cornice Traverse,
+  // the Hillary Step, the summit ridge and a small summit top.
+  private ridgeStart = Infinity;
+  /** Horizontal distance (m) from each route point to the summit. */
+  private dEnd = new Float32Array(0);
+  /** Crest altitude at each route point in the ridge section. */
+  private crest = new Float32Array(0);
+  static readonly RIDGE_LENGTH = 1150;
+
+  /** Crest profile for the top 340 m: [distance from summit (m), altitude (m)]. */
+  static readonly SUMMIT_PROFILE: [number, number][] = [
+    [0, 8849], [4, 8848.7], [40, 8843], [100, 8828], [150, 8812],
+    // Hillary Step: about 12 m, near vertical.
+    [163, 8806], [168, 8794], [172, 8790],
+    // Cornice Traverse, dipping to the notch below the South Summit.
+    [215, 8776], [250, 8752], [272, 8740], [288, 8739],
+    // South Summit.
+    [312, 8751], [322, 8754], [340, 8749],
+  ];
+
+  private prepareSummitRidge() {
+    const pts = this.route.points;
+    const n = pts.length;
+    this.dEnd = new Float32Array(n);
+    for (let k = n - 2; k >= 0; k--) {
+      this.dEnd[k] = this.dEnd[k + 1] + Math.hypot(pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]);
+    }
+    let start = n - 1;
+    while (start > 0 && this.dEnd[start - 1] < Terrain.RIDGE_LENGTH) start--;
+    this.ridgeStart = start;
+    // Crest: the DEM along the route (smoothed) lower down, the real profile near the top.
+    const raw = new Float32Array(n);
+    for (let k = 0; k < n; k++) raw[k] = this.demAt(pts[k][0], pts[k][1]);
+    this.crest = new Float32Array(n);
+    for (let k = start; k < n; k++) {
+      let sum = 0, c = 0;
+      for (let j = Math.max(0, k - 3); j <= Math.min(n - 1, k + 3); j++) { sum += raw[j]; c++; }
+      const smooth = sum / c;
+      const d = this.dEnd[k];
+      const t = smoothstep(340, 430, d);
+      this.crest[k] = Terrain.profileAt(Math.min(d, 340)) * (1 - t) + smooth * t;
+    }
+  }
+
+  static profileAt(d: number): number {
+    const P = Terrain.SUMMIT_PROFILE;
+    if (d <= 0) return P[0][1];
+    for (let i = 1; i < P.length; i++) {
+      if (d <= P[i][0]) {
+        const [d0, h0] = P[i - 1], [d1, h1] = P[i];
+        return h0 + ((h1 - h0) * (d - d0)) / (d1 - d0);
+      }
+    }
+    return P[P.length - 1][1];
+  }
+
+  /** Sculpted height near the ridge, and how strongly it replaces the DEM. */
+  private ridgeSculpt(x: number, z: number, k: number): { h: number; w: number } | null {
+    const pts = this.route.points;
+    const n = pts.length;
+    // Project onto the nearer of the two segments around k.
+    let best = { d: 0, lat: 0, dist: Infinity, crest: 0 };
+    for (const a of [k - 1, k]) {
+      if (a < 0 || a >= n - 1) continue;
+      const [ax, az] = pts[a], [bx, bz] = pts[a + 1];
+      const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz) || 1;
+      const u = ((x - ax) * dx + (z - az) * dz) / (len * len);
+      const tu = Math.min(1, Math.max(0, u));
+      const px = ax + dx * tu, pz = az + dz * tu;
+      const dist = Math.hypot(x - px, z - pz);
+      if (dist < best.dist) {
+        // Positive lateral = right of the way up (east on the summit ridge: the Kangshung Face).
+        const lat = (dx * (z - az) - dz * (x - ax)) / len;
+        // Past the summit, keep measuring "beyond" so the ground falls away on the far side.
+        const along = a === n - 2 && u > 1 ? -(u - 1) * len : this.dEnd[a] - tu * len;
+        const crest = this.crest[a] + (this.crest[a + 1] - this.crest[a]) * tu;
+        best = { d: along, lat, dist, crest };
+      }
+    }
+    if (best.dist === Infinity) return null;
+    let crest = best.d < 0 ? Terrain.profileAt(0) - Math.max(0, -best.d - 3) * 1.1 : best.d < 340 ? Terrain.profileAt(best.d) : best.crest;
+    // A narrow walkable crest, then steep faces: the Kangshung (east) steeper than the Southwest Face.
+    const a = Math.abs(best.lat);
+    const off = Math.max(0, a - 0.9);
+    const drop = best.lat > 0 ? off * 1.3 + off * off * 0.004 : off * 0.95 + off * off * 0.003;
+    crest -= drop;
+    // Ribs and gullies on the faces, growing away from the crest.
+    const along = best.d;
+    const rib = this.noise.fbm(along / 22, best.lat / 9, 3) * 4.5 + Math.abs(this.noise.noise(along / 9 + 30, best.lat / 6)) * 1.5;
+    crest += rib * smoothstep(3, 25, a);
+    // Knife edge near the crest; the DEM's own shape takes over further out.
+    const wLat = 1 - smoothstep(18, 85, a);
+    const wAlong = 1 - smoothstep(Terrain.RIDGE_LENGTH - 150, Terrain.RIDGE_LENGTH, best.d);
+    return { h: crest, w: wLat * wAlong };
   }
 
   /** Procedural sub-DEM relief: wind-sculpted snow, rubble, ice hummocks; flattened on the trail. */

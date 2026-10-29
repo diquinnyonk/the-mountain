@@ -37,6 +37,28 @@ describe('terrain and route', () => {
     expect(route.altitudeAt(L.c4.s)).toBeLessThan(8000);
   });
 
+  it('the summit ridge has the real profile: South Summit, notch, Hillary Step, knife edge', () => {
+    const L = layout.landmarks;
+    const ss = route.altitudeAt(L.southSummit.s);
+    expect(ss).toBeGreaterThan(8740);
+    expect(ss).toBeLessThan(8760);
+    // The route dips after the South Summit before the traverse.
+    let dip = Infinity;
+    for (let s = L.southSummit.s; s < L.hillaryStep.s; s += 2) dip = Math.min(dip, route.altitudeAt(s));
+    expect(dip).toBeLessThan(ss - 5);
+    // The Hillary Step: much steeper than walking ground, so it needs the fixed rope.
+    let steepest = 0;
+    for (let s = L.hillaryStep.s - 15; s < L.hillaryStep.s + 15; s += 1) steepest = Math.max(steepest, route.gradeAt(s));
+    expect(Math.atan(steepest) * 57.3).toBeGreaterThan(45);
+    // A knife edge: the ground falls away on both sides of the crest.
+    const p = route.pointAt(L.hillaryStep.s + 60), t = route.tangentAt(L.hillaryStep.s + 60);
+    for (const side of [-1, 1]) {
+      const x = p.x - t.z * 15 * side, z = p.z + t.x * 15 * side;
+      expect(terrain.baseAt(x, z)).toBeLessThan(p.y - 10);
+    }
+    expect(route.altitudeAt(route.length)).toBeCloseTo(8849, -1);
+  });
+
   it('the trail itself is free of procedural bumps', () => {
     const p = route.pointAt(3000);
     expect(Math.abs(terrain.detailAt(p.x, p.z))).toBeLessThan(0.05);

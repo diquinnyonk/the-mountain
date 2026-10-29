@@ -61,7 +61,7 @@ float detailFoot;
   frac += mix(0.5, dNoise(p * 3.7), BAND(0.27)) * 0.25;
 #endif
   float hr = strata * 0.2 + frac * 0.3;
-  detailRock = mix(0.72, 1.18, clamp(strata * 0.55 + frac * 0.7, 0.0, 1.0));
+  detailRock = mix(0.84, 1.1, clamp(strata * 0.45 + frac * 0.8, 0.0, 1.0));
   detailH = mix(hr, hs, detailSnow) * detailFade;
   // Albedo: rock bands light and dark; snow faintly blue in the hollows between ridges.
   vec3 snowTint = mix(vec3(0.9, 0.94, 1.02), vec3(1.0), ridge);

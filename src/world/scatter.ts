@@ -99,12 +99,12 @@ export class RockScatter {
         if (!rng.chance(0.75)) continue;
         size = rng.range(0.25, 1.3) * (rng.chance(0.08) ? 2.2 : 1);
       } else if (slope > 38) {
-        // Rock bands and buttresses.
-        if (!rng.chance(0.55)) continue;
-        size = rng.range(0.6, 2.8);
+        // Rock bands and buttresses; the summit pyramid is mostly wind-packed snow.
+        if (!rng.chance(y > 8450 ? 0.1 : 0.55)) continue;
+        size = rng.range(0.6, y > 8450 ? 1.4 : 2.8);
       } else {
         // Snowfields: only the occasional rock breaks through.
-        if (!rng.chance(0.05)) continue;
+        if (!rng.chance(y > 8450 ? 0.015 : 0.05)) continue;
         size = rng.range(0.3, 1.1);
       }
       e.set(rng.range(-0.4, 0.4), rng.range(0, Math.PI * 2), rng.range(-0.4, 0.4));
