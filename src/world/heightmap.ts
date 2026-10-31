@@ -317,7 +317,9 @@ export class Terrain {
     const crestLine = best.d < 0 ? Terrain.profileAt(0) - Math.max(0, -best.d - 3) * 1.1 : best.d < 340 ? Terrain.profileAt(best.d) : best.crest;
     // A narrow walkable crest, then steep faces: the Kangshung (east) steeper than the Southwest Face.
     const a = Math.abs(best.lat);
-    const off = Math.max(0, a - 0.9);
+    // The last stretch widens into the small, rounded snow dome of the summit.
+    const dome = best.d < 45 ? 3.2 * (1 - smoothstep(0, 45, Math.max(0, best.d))) : 0;
+    const off = Math.max(0, a - 0.9 - dome);
     const drop = best.lat > 0 ? off * 1.3 + off * off * 0.004 : off * 0.95 + off * off * 0.003;
     let face = crestLine - drop;
     // Ribs and gullies on the faces, growing away from the crest; flutes on the east face.

@@ -120,3 +120,50 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
   mesh.matrixAutoUpdate = false;
   return mesh;
 }
+
+/**
+ * Wind-built cornices overhanging the Kangshung (east) face, from below the Hillary
+ * Step to the summit: a smooth lip of snow that rises a little above the crest and
+ * curls out over the drop. A heightfield can't overhang, so it's its own mesh, swept
+ * along the route; it sits outside the walkable crest, so it's scenery only.
+ */
+export function buildCornice(terrain: Terrain, route: Route, layout: RouteLayout): THREE.Mesh {
+  // Cross-section (lateral m, height m relative to the crest), from crest edge, up over the lip, curling under.
+  const prof: [number, number][] = [[1.4, -0.3], [2.2, 0.55], [3.3, 1.5], [4.7, 2.1], [6.1, 1.9], [7.1, 1.1], [7.5, 0], [7.1, -1.2], [6.0, -2.3], [4.6, -3.1], [3.1, -3.8]];
+  const s0 = layout.landmarks.hillaryStep.s - 40, s1 = route.length - 6;
+  const rows: number[] = [];
+  for (let s = s0; s <= s1; s += 1) rows.push(s);
+  const P = prof.length;
+  const pos = new Float32Array(rows.length * P * 3);
+  const p = new THREE.Vector3(), t = new THREE.Vector3();
+  rows.forEach((s, r) => {
+    route.pointAt(s, p);
+    route.tangentAt(s, t);
+    const crestY = p.y;
+    // Size varies along the ridge and fades in and out at the ends.
+    const u = (s - s0) / (s1 - s0);
+    const k = Math.min(1, u * 8, (1 - u) * 6) * (0.75 + 0.45 * noise.fbm(s / 30, 4, 2) + 0.25 * Math.sin(s / 13));
+    prof.forEach(([lat, dy], j) => {
+      const L = 1.4 + (lat - 1.4) * k;
+      const x = p.x - t.z * L, z = p.z + t.x * L;
+      pos.set([x, crestY + dy * k - 0.02, z], (r * P + j) * 3);
+    });
+  });
+  const idx: number[] = [];
+  for (let r = 0; r < rows.length - 1; r++) {
+    for (let j = 0; j < P - 1; j++) {
+      const a = r * P + j, b = a + 1, c = a + P, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xeef2f8, roughness: 0.85, side: THREE.DoubleSide }));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.matrixAutoUpdate = false;
+  void terrain;
+  return mesh;
+}
