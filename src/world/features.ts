@@ -3,6 +3,7 @@ import type { Route } from './route';
 import type { RouteLayout } from './sections';
 import { Rng } from '../core/rng';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { tentParts } from './tent';
 
 const PRAYER_COLOURS = [0x2a5bd7, 0xf2f2f2, 0xd62828, 0x2a9d47, 0xf4c20d];
 const TENT_COLOURS = [0xf4b400, 0xff7a1a, 0xd93025, 0x1a73e8, 0x34a853, 0xffd54f];
@@ -237,16 +238,16 @@ export class Features {
   }
 
   private buildCamps() {
-    const dome = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-    dome.scale(1.3, 1.15, 1.7);
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.7 });
+    const parts = tentParts();
     const counts: Record<string, [number, number, number]> = {
       // tents, spread along route (m), spread across (m)
       bc: [70, 260, 140], c1: [16, 70, 45], c2: [34, 140, 70], c3: [10, 50, 10], c4: [26, 90, 80],
     };
     const p = new THREE.Vector3(), t = new THREE.Vector3();
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+    const q = new THREE.Quaternion(), qy = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+    const nrm = { x: 0, y: 1, z: 0 }, nv = new THREE.Vector3();
     const placements: { m: THREE.Matrix4; c: number }[] = [];
+    const guyPts: THREE.Vector3[] = [];
     for (const camp of this.layout.camps) {
       const [n, along, across] = counts[camp.id] ?? [10, 50, 30];
       for (let k = 0; k < n; k++) {
@@ -255,20 +256,40 @@ export class Features {
         this.route.tangentAt(s, t);
         const lat = (this.rng.chance(0.5) ? 1 : -1) * this.rng.range(4, across);
         const x = p.x - t.z * lat, z = p.z + t.x * lat;
-        q.setFromAxisAngle(up, this.rng.range(0, Math.PI * 2));
-        m.compose(new THREE.Vector3(x, this.ground(x, z) - 0.1, z), q, new THREE.Vector3(1, 1, 1));
-        placements.push({ m: m.clone(), c: this.rng.pick(TENT_COLOURS) });
+        // Pitched on a levelled platform: mostly upright, tilted a little with the slope.
+        this.route.terrain.normalAt(x, z, nrm, 1.5);
+        nv.set(nrm.x * 0.35, 1, nrm.z * 0.35).normalize();
+        q.setFromUnitVectors(up, nv).multiply(qy.setFromAxisAngle(up, this.rng.range(0, Math.PI * 2)));
+        // Base Camp has some big mess and kitchen domes.
+        const big = camp.id === 'bc' && this.rng.chance(0.12);
+        const sc = big ? this.rng.range(2, 2.6) : this.rng.range(0.9, 1.15);
+        const m = new THREE.Matrix4().compose(new THREE.Vector3(x, this.ground(x, z) - 0.06, z), q, new THREE.Vector3(sc, sc, sc));
+        placements.push({ m, c: big ? 0xf4b400 : this.rng.pick(TENT_COLOURS) });
+        for (const [a, b] of parts.guys) {
+          const pa = a.clone().applyMatrix4(m), pb = b.clone().applyMatrix4(m);
+          pb.y = this.ground(pb.x, pb.z) + 0.02;
+          guyPts.push(pa, pb);
+        }
       }
     }
-    const tents = new THREE.InstancedMesh(dome, mat, placements.length);
-    const col = new THREE.Color();
-    placements.forEach((pl, i) => {
-      tents.setMatrixAt(i, pl.m);
-      tents.setColorAt(i, col.setHex(pl.c));
-    });
-    tents.castShadow = true;
-    tents.receiveShadow = true;
-    this.group.add(tents);
+    const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, colour?: (i: number) => number) => {
+      const mesh = new THREE.InstancedMesh(geo, mat, placements.length);
+      const col = new THREE.Color();
+      placements.forEach((pl, i) => {
+        mesh.setMatrixAt(i, pl.m);
+        if (colour) mesh.setColorAt(i, col.setHex(colour(i)));
+      });
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+      return mesh;
+    };
+    inst(parts.fly, new THREE.MeshStandardMaterial({ roughness: 0.55, side: THREE.DoubleSide }), (i) => placements[i].c);
+    inst(parts.poles, new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.4, metalness: 0.6 }));
+    inst(parts.door, new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.8, side: THREE.DoubleSide }));
+    inst(parts.drift, new THREE.MeshStandardMaterial({ color: 0xe8edf3, roughness: 0.95 }));
+    const lines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(guyPts), new THREE.LineBasicMaterial({ color: 0xd8c27a }));
+    this.group.add(lines);
 
     // Base Camp puja chorten with prayer flag lines radiating from it.
     const bc = this.layout.landmarks.bc;
