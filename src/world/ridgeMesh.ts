@@ -95,18 +95,32 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
     }
   }
   const idx: number[] = [];
+  // Keep only triangles that lie on the ground: where cross-sections fold or bridge a hollow,
+  // a triangle can hang metres above the real surface, so leave a gap for the terrain instead.
+  const onGround = (a: number, b: number, c: number) => {
+    const cx = (pos[a * 3] + pos[b * 3] + pos[c * 3]) / 3;
+    const cy = (pos[a * 3 + 1] + pos[b * 3 + 1] + pos[c * 3 + 1]) / 3;
+    const cz = (pos[a * 3 + 2] + pos[b * 3 + 2] + pos[c * 3 + 2]) / 3;
+    const dev = cy - terrain.heightAt(cx, cz);
+    let edge = 0;
+    for (const [u, v] of [[a, b], [b, c], [c, a]]) edge = Math.max(edge, Math.hypot(pos[u * 3] - pos[v * 3], pos[u * 3 + 2] - pos[v * 3 + 2]));
+    return dev < 0.6 && dev > -4 && edge < 12;
+  };
   for (let r = 0; r < rows.length - 1; r++) {
     for (let j = 0; j < cols - 1; j++) {
       const a = r * cols + j, b = a + 1, c2 = a + cols, d = c2 + 1;
-      idx.push(a, b, c2, b, d, c2);
+      if (onGround(a, b, c2)) idx.push(a, b, c2);
+      if (onGround(b, d, c2)) idx.push(b, d, c2);
     }
   }
   const R = rows.length;
   for (let r = 0; r < R - 1; r++) {
     const l0 = r * cols, l1 = (r + 1) * cols, s0i = skirt0 + r, s1i = skirt0 + r + 1;
-    idx.push(l0, s0i, l1, l1, s0i, s1i);
+    if (onGround(l0, s0i, l1)) idx.push(l0, s0i, l1);
+    if (onGround(l1, s0i, s1i)) idx.push(l1, s0i, s1i);
     const g0 = r * cols + cols - 1, g1 = (r + 1) * cols + cols - 1, t0 = skirt0 + R + r, t1 = skirt0 + R + r + 1;
-    idx.push(g0, g1, t0, g1, t1, t0);
+    if (onGround(g0, g1, t0)) idx.push(g0, g1, t0);
+    if (onGround(g1, t1, t0)) idx.push(g1, t1, t0);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, k * 3), 3));

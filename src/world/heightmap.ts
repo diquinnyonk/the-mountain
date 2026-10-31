@@ -298,7 +298,9 @@ export class Terrain {
     if (!r || r.d < -RIDGE_STRIP_PAST || r.d > Terrain.RIDGE_LENGTH) return 0;
     const a = Math.abs(r.lat);
     if (a >= RIDGE_STRIP_HALF) return 0;
-    return 2.5 * (1 - smoothstep(RIDGE_STRIP_HALF - 5, RIDGE_STRIP_HALF - 1, a)) *
+    // Deep near the crest (where the coarse mesh would poke through the knife edge), shallow on
+    // the faces, so any gap in the strip only shows terrain a few centimetres lower.
+    return (0.25 + 2.25 * (1 - smoothstep(10, 26, a))) * (1 - smoothstep(RIDGE_STRIP_HALF - 5, RIDGE_STRIP_HALF - 1, a)) *
       (1 - smoothstep(Terrain.RIDGE_LENGTH - 40, Terrain.RIDGE_LENGTH, r.d)) *
       (1 - smoothstep(RIDGE_STRIP_PAST - 5, RIDGE_STRIP_PAST - 1, -r.d));
   }

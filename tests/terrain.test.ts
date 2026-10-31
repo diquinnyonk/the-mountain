@@ -86,5 +86,11 @@ describe('summit ridge mesh', () => {
     expect(max).toBeLessThan(count);
     const pos = mesh.geometry.getAttribute('position').array as Float32Array;
     expect(pos.every((v) => Number.isFinite(v))).toBe(true);
+    // No triangle may float above the real ground (you'd see its underside as a ceiling).
+    for (let i = 0; i < idx.length; i += 3) {
+      const c = [0, 1, 2].map((k) => idx[i + k] * 3);
+      const cx = (pos[c[0]] + pos[c[1]] + pos[c[2]]) / 3, cy = (pos[c[0] + 1] + pos[c[1] + 1] + pos[c[2] + 1]) / 3, cz = (pos[c[0] + 2] + pos[c[1] + 2] + pos[c[2] + 2]) / 3;
+      expect(cy - terrain.heightAt(cx, cz)).toBeLessThan(0.7);
+    }
   });
 });
