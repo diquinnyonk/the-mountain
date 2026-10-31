@@ -259,7 +259,8 @@ export class Terrain {
     const warp = this.noise.noise(along / 18, lat / 30) * 2.4 + lat * 0.025;
     const wl = 5.5 + this.noise.noise(along / 40 + 7, 3) * 1.5;
     const f = 1 - Math.abs(Math.sin((Math.PI * along) / wl + warp));
-    const depth = Math.min(1.8, 0.25 + lat * 0.045) * smoothstep(2, 7, lat);
+    // Shallow just below the crest (where you see them from the trail), deeper further down the face.
+    const depth = Math.min(1.3, 0.1 + lat * 0.03) * smoothstep(5, 16, lat);
     return (Math.pow(f, 0.6) - 0.5) * depth * 2;
   }
 

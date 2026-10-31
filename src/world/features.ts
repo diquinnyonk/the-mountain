@@ -323,17 +323,17 @@ export class Features {
     // Southwest Face (west) side of the crest, and a few loose ones below.
     const hs = this.layout.landmarks.hillaryStep;
     const p = new THREE.Vector3(), t = new THREE.Vector3();
-    const rock = new THREE.MeshStandardMaterial({ color: 0x35322f, roughness: 0.95, flatShading: true });
+    const rock = new THREE.MeshStandardMaterial({ color: 0x625b54, roughness: 0.95, flatShading: true });
     const geo = new THREE.DodecahedronGeometry(1, 0);
     for (let k = 0; k < 14; k++) {
       const s = hs.s + this.rng.range(-14, 6);
       this.route.pointAt(s, p);
       this.route.tangentAt(s, t);
-      const size = this.rng.range(0.6, 2.2);
-      const lat = -(1.6 + size * 0.7 + this.rng.range(0, 3)); // west of the crest
+      const size = this.rng.range(0.4, 1.3);
+      const lat = -(2 + size * 0.8 + this.rng.range(0, 3)); // west of the crest
       const x = p.x - t.z * lat, z = p.z + t.x * lat;
       const r = new THREE.Mesh(geo, rock);
-      r.scale.set(size, size * this.rng.range(1, 2.2), size);
+      r.scale.set(size, size * this.rng.range(0.8, 1.5), size);
       r.position.set(x, this.ground(x, z) + size * 0.4, z);
       r.rotation.set(this.rng.next(), this.rng.next() * 6, this.rng.next());
       r.castShadow = true;
