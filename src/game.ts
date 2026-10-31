@@ -20,7 +20,7 @@ import type { WeatherSample } from './weather/model';
 import { BOTTLE_LITRES } from './player/gear';
 import { TouchControls, isTouchDevice, touchPrompt } from './ui/touch';
 import { RouteGuide } from './world/guide';
-import { buildRidgeMesh, buildCornice } from './world/ridgeMesh';
+import { buildRidgeMesh } from './world/ridgeMesh';
 import { DEV_TOOLS } from './core/devtools';
 import { RockScatter } from './world/scatter';
 import { SummitPlume } from './world/plume';
@@ -112,7 +112,6 @@ export class Game {
     this.terrainMesh = new TerrainMesh(this.terrain, this.touch ? 0.6 : 1);
     this.scene.add(this.terrainMesh.group);
     this.scene.add(buildRidgeMesh(this.terrain, this.route, this.layout, this.terrainMesh.material));
-    this.scene.add(buildCornice(this.terrain, this.route, this.layout));
     this.features = new Features(this.route, this.layout);
     this.scene.add(this.features.group);
     this.guide = new RouteGuide(this.route);

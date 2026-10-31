@@ -264,6 +264,22 @@ export class Terrain {
     return (Math.pow(f, 0.6) - 0.5) * depth * 2;
   }
 
+  /**
+   * The cornice along the Cornice Traverse and the final ridge, built into the surface so it
+   * blends with the snow: a smooth swell rising from the trail on the east side to a rounded
+   * lip, then falling away steeply to the Kangshung Face. None beside the Hillary Step or
+   * on the summit dome.
+   */
+  cornice(d: number, lat: number): number {
+    if (lat <= 0.8 || d < 40 || d > 350) return 0;
+    const along = smoothstep(40, 80, d) * (1 - smoothstep(310, 350, d)) * smoothstep(12, 30, Math.abs(d - 168));
+    if (along <= 0) return 0;
+    const size = along * (0.8 + 0.3 * this.noise.noise(d / 35, 11));
+    const swell = 1.5 * smoothstep(1, 5, lat) * (1 - smoothstep(5, 8.5, lat));
+    const fall = Math.max(0, lat - 6.5) * 0.9;
+    return size * (swell - fall);
+  }
+
   /** Sculpted height near the ridge, and how strongly it replaces the DEM. */
   /**
    * Position relative to the summit ridge: d = distance from the summit along the route
@@ -326,6 +342,7 @@ export class Terrain {
     // Ribs and gullies on the faces, growing away from the crest; flutes on the east face.
     const rib = this.noise.fbm(best.d / 22, best.lat / 9, 3) * 4.5 + Math.abs(this.noise.noise(best.d / 9 + 30, best.lat / 6)) * 1.5;
     face += rib * smoothstep(3, 25, a) * (best.lat > 0 ? 0.35 : 1) + this.flutes(best.d, best.lat);
+    face += this.cornice(best.d, best.lat);
     // The Southwest Face breaks into blocky rock steps and snow ledges.
     if (best.lat < -3) {
       const q = face / 6 + this.noise.noise(best.d / 15, 9) * 0.6;
