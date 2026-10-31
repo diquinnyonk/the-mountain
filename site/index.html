@@ -42,7 +42,8 @@ p { margin: 0; }
 
 /* ---------- Hero: the name pinned to two corners ---------- */
 .hero { position: relative; }
-.pin { position: sticky; top: 0; height: 100svh; z-index: 5; pointer-events: none; margin-bottom: -100svh; }
+.pin { position: sticky; top: 0; height: 100svh; z-index: 5; pointer-events: none; }
+.pin + h1 + .panel { margin-top: -100svh; }
 .half { position: absolute; font-weight: 800; letter-spacing: -0.045em; line-height: 0.85; font-size: clamp(72px, 13vw, 210px); margin: 0; color: var(--ink); }
 .half.top { top: calc(var(--margin) + env(safe-area-inset-top, 0px)); left: max(var(--margin), env(safe-area-inset-left, 0px)); }
 .half.bottom { bottom: var(--margin); right: max(var(--margin), env(safe-area-inset-right, 0px)); }
@@ -59,17 +60,13 @@ p { margin: 0; }
 .btn:active { transform: scale(0.97); }
 .link { font-weight: 500; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; text-decoration-color: transparent; transition: text-decoration-color 200ms var(--ease); }
 .link:hover, .link:focus-visible { text-decoration-color: currentColor; }
-.stage nav { position: absolute; right: 28px; top: 50%; transform: translateY(-50%); display: grid; gap: 10px; font-size: 15px; text-align: right; pointer-events: auto; }
-.shot { grid-column: 10 / 13; overflow: hidden; }
+.stage nav { position: absolute; right: 28px; top: 50%; transform: translateY(-50%); display: grid; gap: 10px; font-size: var(--step-small); text-align: right; pointer-events: auto; }
+.shot { grid-column: 10 / 13; overflow: hidden; height: calc(100svh - clamp(72px, 13vw, 210px) * 0.85 - var(--margin) * 2.6); }
 .shot img, .shot video { width: 100%; height: 100%; object-fit: cover; }
 .drift { animation: drift 24s var(--ease) infinite alternate; }
 @keyframes drift { from { transform: scale(1.02); } to { transform: scale(1.12) translateY(-2%); } }
-.panel.full { display: block; position: relative; }
-.panel.full video, .panel.full img { width: 100%; height: 100%; object-fit: cover; }
-.caption { position: absolute; left: max(var(--margin), env(safe-area-inset-left, 0px)); top: 30%; max-width: 30ch; background: var(--bg); padding: 22px 24px; font-size: var(--step-lead); line-height: 1.3; }
-.caption b { display: block; font-weight: 700; }
-.panel.text { display: grid; place-items: center start; padding-left: calc(100% / 12 * 3); background: var(--bg); }
-.panel.text p { max-width: 26ch; font-size: clamp(1.5rem, 1rem + 1.6vw, 2.25rem); line-height: 1.2; font-weight: 500; letter-spacing: -0.01em; }
+.stage .statement { position: absolute; left: calc(100% / 9 * 2); top: 36%; max-width: 30ch; font-size: clamp(1.5rem, 1.2rem + 1vw, 2.25rem); line-height: 1.15; font-weight: 500; letter-spacing: -0.01em; }
+.stage .statement + .fact { position: absolute; left: calc(100% / 9 * 2); top: calc(36% + 8.5em); max-width: 40ch; color: var(--ink); }
 
 /* ---------- Showcase: square plate, spare text ---------- */
 .showcase { display: grid; grid-template-columns: 1fr 1fr; min-height: 88svh; background: var(--surface); }
@@ -77,7 +74,7 @@ p { margin: 0; }
 .plate img { width: 100%; aspect-ratio: 1; object-fit: cover; }
 .spare { display: flex; flex-direction: column; justify-content: space-between; padding: 40px var(--margin) 40px 20px; }
 .tabs { display: flex; gap: 28px; flex-wrap: wrap; }
-.tabs button { background: none; border: 0; padding: 6px 0; font: 500 18px/1.2 var(--face); color: var(--muted); cursor: pointer; transition: color 160ms; }
+.tabs button { background: none; border: 0; padding: 6px 0; font: 500 var(--step-body)/1.2 var(--face); color: var(--muted); cursor: pointer; transition: color 160ms; }
 .tabs button[aria-selected="true"] { color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 3px; text-underline-offset: 8px; }
 .tabs button:hover { color: var(--ink); }
 .spare h2 { margin-bottom: 48px; }
@@ -91,34 +88,34 @@ p { margin: 0; }
 
 /* ---------- How a climb goes: run-in column ---------- */
 .run { padding-block: 180px; }
-.run .col { width: min(580px, 100%); margin-left: 30vw; }
+.run .col { width: min(580px, 100%); margin-left: clamp(0px, 30vw, calc(100% - 580px)); }
 .run h2 { margin-bottom: 48px; }
 .stage-step + .stage-step { margin-top: 72px; }
-.stage-step p { font-size: 18px; line-height: 1.6; color: var(--muted); }
+.stage-step p { font-size: var(--step-body); line-height: 1.6; color: var(--ink); }
 .stage-step p b { color: var(--ink); font-weight: 600; }
-.stage-step img { margin-top: 20px; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.stage-step img { margin-top: 20px; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
 
 /* ---------- Thin air: the live thing ---------- */
 .air { background: var(--ink); color: var(--bg); padding-block: 140px; }
 .air h2 { color: var(--bg); }
 .air-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 20px; margin-top: 56px; align-items: end; }
 .air-read { grid-column: 1 / 5; }
-.air-read .alt { font-size: clamp(64px, 9vw, 140px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.85; font-variant-numeric: tabular-nums; }
+.air-read .alt { white-space: nowrap; font-size: clamp(56px, 7vw, 112px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.85; font-variant-numeric: tabular-nums; }
 .air-read .place { font-size: var(--step-lead); font-weight: 600; margin-top: 14px; min-height: 1.3em; }
 .air-read dl { display: grid; grid-template-columns: auto auto; gap: 10px 24px; margin: 30px 0 0; font-variant-numeric: tabular-nums; }
 .air-read dt { color: #c9bfbb; }
 .air-read dd { margin: 0; font-weight: 700; text-align: right; }
-.air-read .note { margin-top: 24px; color: #c9bfbb; max-width: 36ch; font-size: 16px; }
+.air-read .note { margin-top: 24px; color: #d8cfcb; max-width: 36ch; font-size: var(--step-small); }
 .air-chart { grid-column: 5 / 13; position: relative; }
 .air-chart svg { width: 100%; height: auto; display: block; overflow: visible; touch-action: none; cursor: ew-resize; }
-.air-chart input { width: 100%; margin-top: 18px; accent-color: var(--accent); height: 44px; }
-.air-chart label { display: block; color: #c9bfbb; font-size: 16px; }
+.air-chart input { width: 100%; margin-top: 4px; accent-color: var(--accent); height: 44px; }
+.air-chart label { display: block; margin-top: 28px; color: #d8cfcb; font-size: var(--step-small); }
 
 /* ---------- What can go wrong: one-size name columns ---------- */
 .index { padding-block: 20vh; }
-.index h2 { font-size: 28px; margin-bottom: 96px; }
+.index h2 { margin-bottom: 96px; }
 .index-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 20px; position: relative; }
-.group { font-size: 17px; line-height: 1.25; }
+.group { font-size: var(--step-body); line-height: 1.3; }
 .group:nth-child(1) { grid-column: 1 / 4; }
 .group:nth-child(2) { grid-column: 4 / 7; }
 .group:nth-child(3) { grid-column: 7 / 10; }
@@ -127,23 +124,23 @@ p { margin: 0; }
 .group li { color: var(--muted); padding: 3px 0; cursor: default; transition: color 120ms; }
 .group li:hover, .group li:focus { color: var(--ink); outline: none; }
 .group .sum { display: none; }
-.explain { grid-column: 10 / 13; grid-row: 1; font-size: 17px; line-height: 1.4; min-height: 6em; }
+.explain { grid-column: 10 / 13; grid-row: 1; font-size: var(--step-body); line-height: 1.4; min-height: 6em; }
 .explain b { display: block; font-weight: 600; }
 
 /* ---------- Gallery: prints dropped on the headline ---------- */
-.prints { position: relative; min-height: 100svh; background: var(--surface); overflow: hidden; display: grid; place-items: center; }
-.prints .big { font-size: clamp(120px, 15vw, 230px); font-weight: 800; letter-spacing: -0.05em; line-height: 0.85; text-align: center; margin: 0; }
-.print { position: absolute; width: 26vw; aspect-ratio: 3 / 4; border: 8px solid var(--bg); z-index: 2; transition: transform 200ms var(--ease); cursor: pointer; }
+.prints { position: relative; min-height: 100svh; background: var(--surface); overflow: hidden; display: grid; align-items: center; }
+.prints .big { font-size: clamp(110px, 13vw, 210px); font-weight: 800; letter-spacing: -0.05em; line-height: 0.85; margin: 0; position: relative; z-index: 4; max-width: 50%; }
+.print { position: absolute; width: 22vw; aspect-ratio: 3 / 4; border: 8px solid var(--bg); z-index: 2; transition: transform 200ms var(--ease); cursor: pointer; }
 .print img { width: 100%; height: 100%; object-fit: cover; }
-.print.a { left: 26%; top: 18%; transform: rotate(-8deg); }
-.print.b { left: 47%; top: 26%; transform: rotate(6deg); }
-.print.c { width: 16vw; right: 5%; bottom: -6vw; transform: rotate(-3deg); }
+.print.a { left: 53%; top: 12%; transform: rotate(-8deg); }
+.print.b { left: 70%; top: 22%; transform: rotate(6deg); }
+.print.c { width: 14vw; left: 60%; bottom: -5vw; transform: rotate(-3deg); }
 .print:hover, .print:focus-within { transform: rotate(0deg) scale(1.02); z-index: 3; }
-.prints .small { position: absolute; left: max(24px, env(safe-area-inset-left, 0px)); bottom: 24px; max-width: 40ch; font-size: 16px; }
+.prints .small { position: absolute; left: max(24px, env(safe-area-inset-left, 0px)); bottom: 24px; max-width: 40ch; font-size: var(--step-body); }
 
 /* ---------- One word is the button ---------- */
 .band { display: block; position: relative; min-height: 60svh; background: var(--accent); color: var(--accent-ink); text-decoration: none; overflow: hidden; border-radius: 48px 48px 0 0; }
-.band .next { position: absolute; top: 24px; left: max(var(--margin), env(safe-area-inset-left, 0px)); max-width: 30ch; font-size: 20px; }
+.band .next { position: absolute; top: 24px; left: max(var(--margin), env(safe-area-inset-left, 0px)); max-width: 30ch; font-size: var(--step-lead); }
 .band svg { position: absolute; top: 24px; right: max(var(--margin), env(safe-area-inset-right, 0px)); width: 48px; height: 48px; transition: transform 200ms var(--ease); }
 .band .word { position: absolute; left: max(var(--margin), env(safe-area-inset-left, 0px)); bottom: 24px; font-size: clamp(96px, 27vw, 420px); font-weight: 800; letter-spacing: -0.06em; line-height: 0.78; }
 .band:hover, .band:focus-visible { background: var(--ink); color: var(--bg); }
@@ -151,14 +148,14 @@ p { margin: 0; }
 
 /* ---------- Footer ---------- */
 footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding-top: 40px; padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
-.fcols { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 20px; font-size: 16px; }
+.fcols { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0 20px; font-size: var(--step-body); }
 .fcols div { grid-column: span 3; display: grid; gap: 4px; align-content: start; }
 .fcols b { font-weight: 600; }
 .fcols span, .fcols a { color: #cfc6c2; }
 .fcols a { text-decoration: none; }
 .fcols a:hover { color: var(--bg); text-decoration: underline; }
 .wordmark { display: block; width: 100%; height: auto; margin-top: 40px; fill: var(--bg); }
-.legal { font-size: 13px; color: #cfc6c2; margin-top: 20px; }
+.legal { font-size: var(--step-small); color: #cfc6c2; margin-top: 20px; }
 
 /* ---------- Entrances ---------- */
 .rise { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
@@ -177,42 +174,40 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
   .half.top { top: calc(16px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
   .half.bottom { bottom: 16px; right: max(16px, env(safe-area-inset-right, 0px)); }
   .panel { display: flex; flex-direction: column; height: auto; min-height: 100svh; }
-  .shot { order: -1; height: 56svh; margin-top: 22vw; }
-  .stage { background: var(--bg); padding: 24px 16px 26vw; }
-  .stage .lede { position: static; font-size: 17px; max-width: none; }
+  .shot { order: -1; height: 52svh; margin-top: 22vw; }
+  .stage { background: var(--bg); padding: 24px 16px 32vw; }
+  .stage .lede, .stage .statement, .stage .statement + .fact { position: static; max-width: none; }
+  .stage .lede { font-size: var(--step-body); }
+  .stage .statement { font-size: var(--step-lead); margin-bottom: 16px; }
   .stage nav { display: none; }
-  .panel.full { height: 100svh; }
-  .caption { top: auto; bottom: 24vw; right: 16px; font-size: 17px; }
-  .panel.text { padding: 0 16px; min-height: 80svh; }
-  .panel.text p { font-size: 24px; }
   .showcase { grid-template-columns: 1fr; }
   .plate { padding: 16px; }
   .spare { padding: 8px 16px 32px; gap: 24px; }
-  .tabs button { font-size: 17px; }
+  .tabs button { font-size: var(--step-body); }
   .spare h2 { margin-bottom: 16px; }
   .cells { grid-template-columns: 1fr; }
   .cells a { min-height: 60px; }
   .run { padding-block: 100px; }
   .run .col { margin-left: 0; }
-  .run h2 { font-size: 24px; }
+  .run h2 { font-size: var(--step-head); }
   .stage-step + .stage-step { margin-top: 56px; }
   .air { padding-block: 96px; }
   .air-read, .air-chart { grid-column: 1 / -1; }
   .air-chart { margin-top: 32px; }
-  .index h2 { font-size: 24px; margin-bottom: 48px; }
-  .group { grid-column: 1 / -1 !important; font-size: 18px; line-height: 1.4; }
+  .index h2 { font-size: var(--step-head); margin-bottom: 48px; }
+  .group { grid-column: 1 / -1 !important; font-size: var(--step-body); line-height: 1.4; }
   .group + .group { margin-top: 40px; }
   .group .sum { display: block; color: var(--muted); margin-top: 12px; }
   .explain { display: none; }
-  .prints { min-height: 78svh; }
-  .prints .big { font-size: 26vw; }
-  .print { width: 52vw; }
-  .print.a { left: 6%; top: 24%; transform: rotate(-6deg); }
-  .print.b { left: 40%; top: 32%; transform: rotate(5deg); }
+  .prints { min-height: 100svh; align-items: start; padding-top: 64px; }
+  .prints .big { font-size: 24vw; max-width: none; }
+  .print { width: 46vw; }
+  .print.a { left: 6%; top: auto; bottom: 18%; transform: rotate(-6deg); }
+  .print.b { left: 46%; top: auto; bottom: 12%; transform: rotate(5deg); }
   .print.c { display: none; }
-  .prints .small { font-size: 15px; right: 16px; }
+  .prints .small { font-size: var(--step-small); right: 16px; }
   .band { min-height: 46svh; border-radius: 32px 32px 0 0; }
-  .band .next { font-size: 17px; max-width: 22ch; }
+  .band .next { font-size: var(--step-body); max-width: 22ch; }
   .band svg { width: 32px; height: 32px; }
   .band .word { font-size: 30vw; }
   .fcols div { grid-column: span 6; margin-bottom: 32px; }
@@ -249,13 +244,12 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
       <div class="shot"><img class="drift" src="media/ridge-sunrise.jpg" width="900" height="1600" alt="A climber clipped to the fixed line on Everest's summit ridge at sunrise, with the Himalaya glowing pink below."></div>
     </div>
 
-    <div class="panel full" id="trailer">
-      <video src="media/trailer.mp4" poster="media/icefall.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Gameplay trailer: the Khumbu Icefall, a ladder crossing, the Lhotse Face, the summit ridge at sunrise and the summit."></video>
-      <p class="caption"><b>5,364 m to 8,849 m.</b>13 km of the South Col route, built from real elevation data.</p>
-    </div>
-
-    <div class="panel text">
-      <p class="rise">Turn around by 13:00, wherever you are. The summit will still be there next year.</p>
+    <div class="panel" id="trailer">
+      <div class="stage">
+        <p class="statement rise">Turn around by 13:00. The summit will be there next year.</p>
+        <p class="fact rise">5,364 m to 8,849 m: 13 km of the South Col route, built from real elevation data. The trailer shows the climb from the Icefall to the top.</p>
+      </div>
+      <div class="shot"><video src="media/trailer.mp4" poster="media/icefall.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Gameplay trailer: the Khumbu Icefall, a ladder crossing, the Lhotse Face, the summit ridge at sunrise and the summit."></video></div>
     </div>
   </section>
 
@@ -370,7 +364,7 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
     </div>
   </section>
 
-  <section class="prints" aria-labelledby="prints-h">
+  <section class="prints wrap" aria-labelledby="prints-h">
     <h2 id="prints-h" class="big">8,849<br>metres</h2>
     <figure class="print a" tabindex="0" style="margin:0"><img src="media/summit-ridge.jpg" width="1200" height="1500" alt="Walking the final summit ridge, prayer flags laid along the snow." loading="lazy"></figure>
     <figure class="print b" tabindex="0" style="margin:0"><img src="media/icefall.jpg" width="1200" height="1500" alt="Pemba leading through the seracs of the Khumbu Icefall." loading="lazy"></figure>
@@ -451,11 +445,11 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
   svg.append(el('rect', { x: 0, y: 0, width: W, height: Y(8000), fill: '#3b302b' }));
   svg.append(el('path', { d, fill: '#4a403b' }));
   svg.append(el('path', { d: P.pts.map(([s, a], i) => `${i ? 'L' : 'M'}${X(s).toFixed(1)} ${Y(a).toFixed(1)}`).join(' '), fill: 'none', stroke: '#ebe5e3', 'stroke-width': 2.5 }));
-  const t8 = el('text', { x: 6, y: Y(8000) - 8, fill: '#e8a49b', 'font-size': 15, 'font-family': 'Onest, sans-serif' }); t8.textContent = 'death zone, above 8,000 m'; svg.append(t8);
+  const t8 = el('text', { x: 6, y: Y(8000) - 8, fill: '#e8a49b', 'font-size': 16, 'font-family': 'Onest, sans-serif' }); t8.textContent = 'death zone, above 8,000 m'; svg.append(t8);
   for (const [name, s, a] of P.marks) {
     if (!/Camp|Col|Summit/.test(name) || name === 'South Summit') continue;
     svg.append(el('circle', { cx: X(s), cy: Y(a), r: 5, fill: '#ebe5e3' }));
-    const t = el('text', { x: X(s) + (name === 'Summit' ? -8 : 8), y: Y(a) + (name === 'Summit' ? -12 : 20), fill: '#ebe5e3', 'font-size': 15, 'font-family': 'Onest, sans-serif', 'text-anchor': name === 'Summit' ? 'end' : 'start' });
+    const t = el('text', { x: X(s) + (name === 'Summit' ? -8 : 8), y: Y(a) + (name === 'Summit' ? -12 : 20), fill: '#ebe5e3', 'font-size': 16, 'font-family': 'Onest, sans-serif', 'text-anchor': name === 'Summit' ? 'end' : 'start' });
     t.textContent = name; svg.append(t);
   }
   const marker = el('g', {});
