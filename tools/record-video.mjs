@@ -12,6 +12,7 @@ const { chromium } = require('playwright');
 const OUT = process.argv[2] ?? 'the-mountain-trailer.mp4';
 const BASE = process.argv[3] ?? 'http://localhost:4173/';
 const FPS = 30;
+const SCALE = Number(process.env.VIDEO_SCALE ?? 1);
 const FRAMES = join(dirname(OUT), 'frames');
 rmSync(FRAMES, { recursive: true, force: true });
 mkdirSync(FRAMES, { recursive: true });
@@ -38,6 +39,7 @@ await page.evaluate(() => {
 
 let frame = 0;
 const shoot = async (n, hook = 'null') => {
+  n = Math.max(1, Math.round(n * SCALE));
   for (let i = 0; i < n; i++) {
     await page.evaluate(`window.__step(${hook})`);
     await page.screenshot({ path: join(FRAMES, `${String(frame++).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 90 });
@@ -71,6 +73,10 @@ await page.evaluate(() => {
     return w;
   };
   e.radioLog.length = 0;
+  // The fade-in waits on requestAnimationFrame, which we've taken over: clear it now.
+  const fade = document.getElementById('fx-fade');
+  fade.style.transition = 'none';
+  fade.style.opacity = '0';
   window.__walk = () => {
     const p = e.player;
     if (p.mode === 'slip' || p.mode === 'down' || p.mode === 'rest') p.mode = 'walk';
@@ -81,9 +87,17 @@ await page.evaluate(() => {
     if (knob) knob.style.transform = 'translate(0px, -44px)';
     document.querySelector('#touch .stick')?.classList.add('active');
   };
+  // A clean frame: no prompts or radio over the action.
+  const style = document.createElement('style');
+  style.textContent = '#hud-prompt, #hud-radio, #hud-conditions { display: none !important; }';
+  document.head.appendChild(style);
   window.__place = (s, lat, hour, opts = {}) => {
     const p = e.player;
     p.placeAt(s, lat);
+    // A well-acclimatised climber, on oxygen high up, so no hypoxia effects cloud the shot.
+    Object.assign(p.physiology, { acclimAlt: 7400, energy: 90, hydration: 90, ams: 0, hape: 0, hace: 0, hypoxicDebt: 0, coreTemp: 37, uvDose: 0 });
+    p.gear.litres = 1080;
+    p.gear.flowLpm = p.pos.y > 7000 ? 3 : 0;
     p.clipped = !!opts.clipped;
     e.clock.time = e.clock.nextLocalHour(hour);
     const sh = e.director.sherpa;
@@ -122,7 +136,7 @@ await shoot(4 * FPS, 'window.__walk');
 // 6. The summit ridge at sunrise (alpenglow).
 await page.evaluate((s) => {
   const g = window.game, e = g.exp;
-  window.__place(s, 0, 4.5, { clipped: true, pitch: 0.22, dist: 6.5 });
+  window.__place(s, 0.7, 4.5, { clipped: true, pitch: 0.38, dist: 8, yaw: 0.85 });
   let t = e.clock.time;
   g.sky.update(t, e.player.pos, g.camera, e.weatherHere, 0.016);
   while (g.sky.sunElevation < 2.5) { t += 60000; g.sky.update(t, e.player.pos, g.camera, e.weatherHere, 0.016); }
