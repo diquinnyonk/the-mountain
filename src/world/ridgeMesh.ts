@@ -3,9 +3,12 @@ import type { Route } from './route';
 import type { RouteLayout } from './sections';
 import { RIDGE_STRIP_HALF, RIDGE_STRIP_PAST, Terrain } from './heightmap';
 import { terrainColor } from './terrainMesh';
+import { Noise2 } from './noise';
+
+const noise = new Noise2(29029);
 
 /** Across-ridge sample offsets (m): fine at the crest, coarser down the faces. */
-const LATS = [0, 0.45, 0.9, 1.4, 2, 2.8, 3.8, 5, 6.5, 8.5, 11, 14, 18, 23, 29, RIDGE_STRIP_HALF];
+const LATS = [0, 0.45, 0.9, 1.4, 2, 2.8, 3.6, 4.5, 5.5, 6.7, 8, 9.5, 11, 13, 15, 17.5, 20, 23, 26, 30, 34, 39, 45, 51, 57, RIDGE_STRIP_HALF];
 
 /**
  * The summit ridge from the Balcony up, drawn at about a metre's resolution so the
@@ -38,6 +41,19 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
     pos.set([x, y, z], k * 3);
     nor.set([-hx / l, (2 * e) / l, -hz / l], k * 3);
     terrainColor(x, z, y, (2 * e) / l, terrain.routeDistance(x, z), c);
+    // The Southwest Face (west) is dark rock with snow caught in patches; the Kangshung Face
+    // (east) is bright fluted snow.
+    const rc = terrain.ridgeCoords(x, z);
+    if (rc && rc.lat < -2.5) {
+      // Snow holds on the gentler ribs; the steeper rock between them shows through.
+      const slope = Math.acos(Math.min(1, (2 * e) / l)) * 57.3;
+      const patch = noise.fbm(x / 30, z / 30, 3) * 16;
+      const rock = Math.min(1, Math.max(0, (-rc.lat - 2.5) / 8)) * Math.min(1, Math.max(0, (slope - 34 + patch) / 14));
+      const tone = 0.19 + noise.noise(x / 3, z / 3) * 0.03;
+      c.setRGB(c.r + (tone - c.r) * rock, c.g + (tone * 0.96 - c.g) * rock, c.b + (tone * 0.95 - c.b) * rock);
+    } else if (rc && rc.lat > 2) {
+      c.setRGB(Math.min(1, c.r * 1.05 + 0.02), Math.min(1, c.g * 1.05 + 0.02), Math.min(1, c.b * 1.04 + 0.03));
+    }
     col.set([c.r, c.g, c.b], k * 3);
     k++;
   };

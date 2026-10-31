@@ -36,7 +36,7 @@ export interface RouteData {
  * the trail stays walkable.
  */
 /** Half-width (m) of the detailed summit-ridge mesh, and how far past the summit it runs. */
-export const RIDGE_STRIP_HALF = 36;
+export const RIDGE_STRIP_HALF = 64;
 export const RIDGE_STRIP_PAST = 25;
 
 export class Terrain {
@@ -57,6 +57,7 @@ export class Terrain {
     const n = meta.width * meta.height;
     this.routeDist = new Float32Array(n).fill(1e6);
     this.routeIdx = new Int32Array(n).fill(-1);
+    this.snapRouteToCrest();
     this.buildRouteMask(40);
     this.prepareSummitRidge();
   }
@@ -113,8 +114,45 @@ export class Terrain {
     const dem = this.demAt(x, z);
     const k = this.nearestRouteIndex(x, z);
     if (k < this.ridgeStart) return dem;
-    const sc = this.ridgeSculpt(x, z, k);
+    const sc = this.ridgeSculpt(x, z, k, dem);
     return sc ? dem + (sc.h - dem) * sc.w : dem;
+  }
+
+  /**
+   * The least-effort path traverses the east flank of the summit ridge. From the Balcony
+   * up, move it sideways onto the ridge's actual crest in the DEM, as the real route runs.
+   */
+  private snapRouteToCrest() {
+    const src = this.route.points;
+    const n = src.length;
+    const dEnd = new Float32Array(n);
+    for (let k = n - 2; k >= 0; k--) dEnd[k] = dEnd[k + 1] + Math.hypot(src[k + 1][0] - src[k][0], src[k + 1][1] - src[k][1]);
+    const offs = new Float32Array(n);
+    for (let k = 1; k < n - 1; k++) {
+      if (dEnd[k] > Terrain.RIDGE_LENGTH + 100 || dEnd[k] < 2) continue;
+      const tx = src[k + 1][0] - src[k - 1][0], tz = src[k + 1][1] - src[k - 1][1];
+      const tl = Math.hypot(tx, tz) || 1;
+      const nx = -tz / tl, nz = tx / tl;
+      let best = 0, bh = -Infinity;
+      for (let o = -150; o <= 150; o += 3) {
+        let h = 0;
+        for (const d of [-6, 0, 6]) h += this.demAt(src[k][0] + nx * (o + d), src[k][1] + nz * (o + d));
+        if (h > bh) { bh = h; best = o; }
+      }
+      offs[k] = best;
+    }
+    // Smooth the offsets along the route and fade them in from the Balcony.
+    const out = src.map((p) => [p[0], p[1]] as [number, number]);
+    for (let k = 1; k < n - 1; k++) {
+      let sum = 0, c = 0;
+      for (let j = Math.max(1, k - 6); j <= Math.min(n - 2, k + 6); j++) { sum += offs[j]; c++; }
+      const fade = (1 - smoothstep(Terrain.RIDGE_LENGTH - 100, Terrain.RIDGE_LENGTH + 80, dEnd[k])) * smoothstep(2, 40, dEnd[k]);
+      const o = (sum / c) * fade;
+      const tx = src[k + 1][0] - src[k - 1][0], tz = src[k + 1][1] - src[k - 1][1];
+      const tl = Math.hypot(tx, tz) || 1;
+      out[k] = [src[k][0] - (tz / tl) * o, src[k][1] + (tx / tl) * o];
+    }
+    this.route.points = out;
   }
 
   // ----- The summit ridge -----
@@ -176,6 +214,19 @@ export class Terrain {
     return P[P.length - 1][1];
   }
 
+  /**
+   * Spindrift flutes on the Kangshung (east) face: sharp parallel snow ribs running
+   * straight down the fall line, a few metres apart, deepening away from the crest.
+   */
+  flutes(along: number, lat: number): number {
+    if (lat <= 2) return 0;
+    const warp = this.noise.noise(along / 18, lat / 30) * 2.4 + lat * 0.025;
+    const wl = 5.5 + this.noise.noise(along / 40 + 7, 3) * 1.5;
+    const f = 1 - Math.abs(Math.sin((Math.PI * along) / wl + warp));
+    const depth = Math.min(1.8, 0.25 + lat * 0.045) * smoothstep(2, 7, lat);
+    return (Math.pow(f, 0.6) - 0.5) * depth * 2;
+  }
+
   /** Sculpted height near the ridge, and how strongly it replaces the DEM. */
   /**
    * Position relative to the summit ridge: d = distance from the summit along the route
@@ -203,7 +254,7 @@ export class Terrain {
     const pts = this.route.points;
     const n = pts.length;
     // Project onto the nearer of the two segments around k.
-    let best = { d: 0, lat: 0, dist: Infinity, crest: 0 };
+    let best = { d: 0, lat: 0, dist: Infinity, crest: 0, px: 0, pz: 0 };
     for (const a of [k - 1, k]) {
       if (a < 0 || a >= n - 1) continue;
       const [ax, az] = pts[a], [bx, bz] = pts[a + 1];
@@ -218,29 +269,35 @@ export class Terrain {
         // Past the summit, keep measuring "beyond" so the ground falls away on the far side.
         const along = a === n - 2 && u > 1 ? -(u - 1) * len : this.dEnd[a] - tu * len;
         const crest = this.crest[a] + (this.crest[a + 1] - this.crest[a]) * tu;
-        best = { d: along, lat, dist, crest };
+        best = { d: along, lat, dist, crest, px, pz };
       }
     }
     return best.dist === Infinity ? null : best;
   }
 
-  private ridgeSculpt(x: number, z: number, k: number): { h: number; w: number } | null {
+  private ridgeSculpt(x: number, z: number, k: number, dem: number): { h: number; w: number } | null {
     const best = this.projectRidge(x, z, k);
     if (!best) return null;
-    let crest = best.d < 0 ? Terrain.profileAt(0) - Math.max(0, -best.d - 3) * 1.1 : best.d < 340 ? Terrain.profileAt(best.d) : best.crest;
+    const crestLine = best.d < 0 ? Terrain.profileAt(0) - Math.max(0, -best.d - 3) * 1.1 : best.d < 340 ? Terrain.profileAt(best.d) : best.crest;
     // A narrow walkable crest, then steep faces: the Kangshung (east) steeper than the Southwest Face.
     const a = Math.abs(best.lat);
     const off = Math.max(0, a - 0.9);
     const drop = best.lat > 0 ? off * 1.3 + off * off * 0.004 : off * 0.95 + off * off * 0.003;
-    crest -= drop;
-    // Ribs and gullies on the faces, growing away from the crest.
-    const along = best.d;
-    const rib = this.noise.fbm(along / 22, best.lat / 9, 3) * 4.5 + Math.abs(this.noise.noise(along / 9 + 30, best.lat / 6)) * 1.5;
-    crest += rib * smoothstep(3, 25, a);
-    // Knife edge near the crest; the DEM's own shape takes over further out.
-    const wLat = 1 - smoothstep(18, 85, a);
+    let face = crestLine - drop;
+    // Ribs and gullies on the faces, growing away from the crest; flutes on the east face.
+    const rib = this.noise.fbm(best.d / 22, best.lat / 9, 3) * 4.5 + Math.abs(this.noise.noise(best.d / 9 + 30, best.lat / 6)) * 1.5;
+    face += rib * smoothstep(3, 25, a) * (best.lat > 0 ? 0.35 : 1) + this.flutes(best.d, best.lat);
+    // The faces cut down into the terrain until they meet it, and never rise back above it
+    // (which would leave the crest in a trench). The DEM is shifted to agree with the crest
+    // along the route, fading out with distance from it.
+    const shift = (crestLine - this.demAt(best.px, best.pz)) * (1 - smoothstep(25, 130, a));
+    const surface = dem + shift;
+    // Carve down to the steep face near the crest, but cap the depth and let it taper so the
+    // faces ease back into the terrain while still descending (no cliff where the carve ends).
+    const cap = 55 * (1 - smoothstep(45, 260, a));
+    const h = surface - Math.min(Math.max(0, surface - face), cap);
     const wAlong = 1 - smoothstep(Terrain.RIDGE_LENGTH - 150, Terrain.RIDGE_LENGTH, best.d);
-    return { h: crest, w: wLat * wAlong };
+    return { h, w: wAlong * (1 - smoothstep(260, 300, a)) };
   }
 
   /** Procedural sub-DEM relief: wind-sculpted snow, rubble, ice hummocks; flattened on the trail. */
