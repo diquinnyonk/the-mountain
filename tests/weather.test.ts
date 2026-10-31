@@ -78,3 +78,18 @@ describe('weather', () => {
     expect(fallback.notes.join(' ')).toMatch(/unavailable/);
   });
 });
+
+describe('sun position', () => {
+  it('rises in the east and sets in the west at Everest', async () => {
+    const { sunPosition, EVEREST } = await import('../src/world/sun');
+    const local = (h: number) => Date.UTC(2019, 4, 18) - 5.75 * 3600e3 + h * 3600e3;
+    const dawn = sunPosition(local(5.5), EVEREST.lat, EVEREST.lon);
+    const dusk = sunPosition(local(18.5), EVEREST.lat, EVEREST.lon);
+    const noon = sunPosition(local(12), EVEREST.lat, EVEREST.lon);
+    expect(dawn.azimuth).toBeGreaterThan(45);
+    expect(dawn.azimuth).toBeLessThan(110);
+    expect(dusk.azimuth).toBeGreaterThan(250);
+    expect(dusk.azimuth).toBeLessThan(315);
+    expect(noon.elevation).toBeGreaterThan(75);
+  });
+});

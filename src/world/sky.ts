@@ -16,6 +16,8 @@ export class SkySystem {
   private cloudSea: THREE.Mesh;
   private sunDir = new THREE.Vector3();
   sunElevation = 0;
+  /** 0..1 strength of dawn/dusk alpenglow. */
+  alpenglow = 0;
   /** 0 = night, 1 = full day. */
   daylight = 1;
 
@@ -81,16 +83,21 @@ export class SkySystem {
     const dim = 1 - 0.75 * Math.max(smoothstep(0.3, 1, cloud) * 0.8, storm, smoothstep(0.05, 1.2, w.snowfallCmH) * 0.7);
 
     // Moonlight keeps nights navigable but dark; a headlamp does the rest.
-    this.sun.intensity = lerp(0.06, 3.2, day) * dim;
-    // Alpenglow: a low sun turns the snow orange-pink at dawn and dusk.
-    const warm = (1 - smoothstep(2, 30, elevation)) * day;
-    this.sun.color.setHSL(lerp(lerp(0.6, 0.11, day), 0.03, warm), lerp(lerp(0.3, 0.1, day), 0.8, warm), lerp(lerp(0.75, 0.97, day), 0.72, warm));
+    // Alpenglow: in the first and last minutes of sun the light is deep pink-orange, and the
+    // blue sky light that would wash it out is weak. Strongest with the sun a few degrees up.
+    const glow = smoothstep(-2.5, 1.5, elevation) * (1 - smoothstep(3, 20, elevation)) * dim;
+    this.alpenglow = glow;
+    this.sun.intensity = lerp(0.06, 3.2, day) * dim * (1 + 0.9 * glow);
+    this.sun.color.setHSL(lerp(0.6, 0.11, day), lerp(0.3, 0.1, day), lerp(0.75, 0.97, day));
+    this.sun.color.lerp(ALPENGLOW, glow);
     const dir = elevation > -4 ? this.sunDir : moonDir;
     this.sun.position.copy(focus).addScaledVector(dir, 600);
     this.sun.target.position.copy(focus);
     // Overcast light is diffuse, not dark: what the sun loses comes back as sky light, so snow stays white.
     this.hemi.intensity = lerp(0.05, 0.7, day) * (0.6 + 0.4 * dim) + (1 - dim) * 1.1 * day + storm * 0.25 * day;
     this.hemi.color.setHSL(0.6, 0.4 * (1 - storm), lerp(0.25, 0.8, day));
+    this.hemi.color.lerp(DAWN_SKY, glow * 0.8);
+    this.hemi.intensity *= 1 - 0.45 * glow;
 
     (this.stars.material as THREE.PointsMaterial).opacity = (1 - smoothstep(-12, -2, elevation)) * (1 - cloud);
     const oc = this.overcast.material as THREE.MeshBasicMaterial;
@@ -117,6 +124,8 @@ export class SkySystem {
     // In a storm the air itself is white.
     const fogDay = lerp(0.03, lerp(0.6, 0.8, storm), day);
     this.fog.color.setHSL(0.59, lerp(0.34, 0.06, storm), fogDay);
+    // Warm haze toward the horizon at sunrise and sunset.
+    this.fog.color.lerp(DAWN_HAZE.clone().multiplyScalar(fogDay * 1.15), this.alpenglow * 0.55);
     // Thin air high on the mountain: a darker, deeper blue sky with less haze.
     const high = smoothstep(5000, 8800, focus.y);
     const u = this.sky.material.uniforms;
@@ -130,6 +139,9 @@ export class SkySystem {
   }
 }
 
+const ALPENGLOW = new THREE.Color(1, 0.48, 0.42);
+const DAWN_HAZE = new THREE.Color(0.95, 0.72, 0.68);
+const DAWN_SKY = new THREE.Color(0.55, 0.45, 0.7);
 const moonDir = new THREE.Vector3(0.3, 0.8, 0.4).normalize();
 
 function cloudTexture(): THREE.Texture {

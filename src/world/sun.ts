@@ -9,7 +9,10 @@ export function sunPosition(utcMs: number, lat: number, lon: number): { elevatio
   const eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
   const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
   const tst = hour * 60 + eqTime + 4 * lon;
-  const ha = (tst / 4 - 180) * rad;
+  // Hour angle, wrapped to -180..180 (the local morning can fall on the previous UTC day).
+  let haDeg = (((tst / 4 - 180) % 360) + 360) % 360;
+  if (haDeg > 180) haDeg -= 360;
+  const ha = haDeg * rad;
   const phi = lat * rad;
   const cosZen = Math.sin(phi) * Math.sin(decl) + Math.cos(phi) * Math.cos(decl) * Math.cos(ha);
   const zen = Math.acos(Math.max(-1, Math.min(1, cosZen)));

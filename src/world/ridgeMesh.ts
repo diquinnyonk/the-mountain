@@ -130,7 +130,9 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
 export function buildCornice(terrain: Terrain, route: Route, layout: RouteLayout): THREE.Mesh {
   // Cross-section (lateral m, height m relative to the crest), from crest edge, up over the lip, curling under.
   // A tall, thin snow fin: a steep inner wall above the trail, a sharp crest, an overhanging outer face.
-  const prof: [number, number][] = [[1.4, -0.3], [1.9, 0.7], [2.5, 1.6], [3.2, 2.1], [3.9, 1.9], [4.4, 1.2], [4.7, 0.2], [4.6, -1], [4.1, -2.1], [3.3, -3]];
+  // A wave of wind-packed snow: a gentle ramp up from the trail side, a crest about 4 m up, then a lip
+  // that curls right out over the Kangshung Face and hangs down beneath itself.
+  const prof: [number, number][] = [[1.6, -0.3], [2.3, 0.6], [3.1, 1.7], [4.0, 2.9], [4.9, 3.7], [5.8, 4.0], [6.7, 3.6], [7.4, 2.7], [7.8, 1.4], [7.7, 0.1], [7.1, -0.6], [6.4, -0.4], [5.9, -1.3], [5.4, -2.8], [4.6, -4.2], [3.6, -5.2]];
   // Along the Cornice Traverse and the final ridge; it ends well short of the summit dome.
   const s0 = layout.landmarks.southSummit.s + 15, s1 = route.length - 55;
   const rows: number[] = [];
@@ -147,9 +149,9 @@ export function buildCornice(terrain: Terrain, route: Route, layout: RouteLayout
     const ends = Math.sin(Math.PI * Math.min(1, u * 6, (1 - u) * 5) / 2) ** 2;
     // No cornice beside the Hillary Step pitch itself.
     const step = 1 - Math.exp(-(((s - layout.landmarks.hillaryStep.s) / 12) ** 2));
-    const k = ends * step * (0.7 + 0.35 * noise.fbm(s / 30, 4, 2) + 0.2 * Math.sin(s / 13));
+    const k = ends * step * (0.75 + 0.35 * noise.fbm(s / 30, 4, 2) + 0.2 * Math.sin(s / 13));
     prof.forEach(([lat, dy], j) => {
-      const L = 1.4 + (lat - 1.4) * k;
+      const L = 1.6 + (lat - 1.6) * k;
       const x = p.x - t.z * L, z = p.z + t.x * L;
       pos.set([x, crestY + dy * k - 0.02, z], (r * P + j) * 3);
     });
