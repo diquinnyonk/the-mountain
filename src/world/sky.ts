@@ -88,7 +88,8 @@ export class SkySystem {
     const dir = elevation > -4 ? this.sunDir : moonDir;
     this.sun.position.copy(focus).addScaledVector(dir, 600);
     this.sun.target.position.copy(focus);
-    this.hemi.intensity = lerp(0.05, 0.7, day) * (0.6 + 0.4 * dim) + storm * 0.25 * day;
+    // Overcast light is diffuse, not dark: what the sun loses comes back as sky light, so snow stays white.
+    this.hemi.intensity = lerp(0.05, 0.7, day) * (0.6 + 0.4 * dim) + (1 - dim) * 1.1 * day + storm * 0.25 * day;
     this.hemi.color.setHSL(0.6, 0.4 * (1 - storm), lerp(0.25, 0.8, day));
 
     (this.stars.material as THREE.PointsMaterial).opacity = (1 - smoothstep(-12, -2, elevation)) * (1 - cloud);

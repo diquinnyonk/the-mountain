@@ -144,7 +144,11 @@ export class Expedition {
       }
     }
 
-    this.season = seasonFor(start, route.length, layout.landmarks.c1.s);
+    const season = seasonFor(start, route.length, layout.landmarks.c1.s);
+    // Starting high means the ropes got you there: fixed at least to your camp, and to the
+    // summit if you start at Camp 3 or above (a summit push only goes on fixed lines).
+    const ropesTo = startId === 'bc' ? 0 : ['c3', 'c4', 'summit'].includes(startId) ? route.length : startCamp.s + 50;
+    this.season = { ...season, ropeFront: Math.max(season.ropeFront, ropesTo) };
     const self = this;
     const playerView: PlayerView = {
       get s() { return self.player.s; },
