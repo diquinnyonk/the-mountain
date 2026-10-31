@@ -129,8 +129,9 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
  */
 export function buildCornice(terrain: Terrain, route: Route, layout: RouteLayout): THREE.Mesh {
   // Cross-section (lateral m, height m relative to the crest), from crest edge, up over the lip, curling under.
-  const prof: [number, number][] = [[1.4, -0.3], [2.2, 0.55], [3.3, 1.5], [4.7, 2.1], [6.1, 1.9], [7.1, 1.1], [7.5, 0], [7.1, -1.2], [6.0, -2.3], [4.6, -3.1], [3.1, -3.8]];
-  const s0 = layout.landmarks.hillaryStep.s - 40, s1 = route.length - 6;
+  // A tall, thin snow fin: a steep inner wall above the trail, a sharp crest, an overhanging outer face.
+  const prof: [number, number][] = [[1.4, -0.3], [1.8, 1.4], [2.2, 3.2], [2.7, 4.5], [3.3, 5], [3.9, 4.6], [4.4, 3.4], [4.8, 1.6], [4.9, -0.4], [4.6, -2.4], [4, -4], [3.2, -5.2]];
+  const s0 = layout.landmarks.southSummit.s + 15, s1 = route.length - 8;
   const rows: number[] = [];
   for (let s = s0; s <= s1; s += 1) rows.push(s);
   const P = prof.length;
@@ -160,7 +161,7 @@ export function buildCornice(terrain: Terrain, route: Route, layout: RouteLayout
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xeef2f8, roughness: 0.85, side: THREE.DoubleSide }));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xf2f5fa, roughness: 0.8, side: THREE.DoubleSide, emissive: 0x2a3446, emissiveIntensity: 0.6 }));
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;

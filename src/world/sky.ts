@@ -82,7 +82,9 @@ export class SkySystem {
 
     // Moonlight keeps nights navigable but dark; a headlamp does the rest.
     this.sun.intensity = lerp(0.06, 3.2, day) * dim;
-    this.sun.color.setHSL(lerp(0.6, 0.1, day), lerp(0.3, smoothstep(0, 25, elevation) < 1 ? 0.5 : 0.1, day), lerp(0.75, 0.97, day));
+    // Alpenglow: a low sun turns the snow orange-pink at dawn and dusk.
+    const warm = (1 - smoothstep(2, 30, elevation)) * day;
+    this.sun.color.setHSL(lerp(lerp(0.6, 0.11, day), 0.03, warm), lerp(lerp(0.3, 0.1, day), 0.8, warm), lerp(lerp(0.75, 0.97, day), 0.72, warm));
     const dir = elevation > -4 ? this.sunDir : moonDir;
     this.sun.position.copy(focus).addScaledVector(dir, 600);
     this.sun.target.position.copy(focus);

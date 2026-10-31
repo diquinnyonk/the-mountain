@@ -325,6 +325,11 @@ export class Terrain {
     // Ribs and gullies on the faces, growing away from the crest; flutes on the east face.
     const rib = this.noise.fbm(best.d / 22, best.lat / 9, 3) * 4.5 + Math.abs(this.noise.noise(best.d / 9 + 30, best.lat / 6)) * 1.5;
     face += rib * smoothstep(3, 25, a) * (best.lat > 0 ? 0.35 : 1) + this.flutes(best.d, best.lat);
+    // The Southwest Face breaks into blocky rock steps and snow ledges.
+    if (best.lat < -3) {
+      const q = face / 6 + this.noise.noise(best.d / 15, 9) * 0.6;
+      face += (Math.round(q) - q) * 3.2 * smoothstep(3, 12, a);
+    }
     // The faces cut down into the terrain until they meet it, and never rise back above it
     // (which would leave the crest in a trench). The DEM is shifted to agree with the crest
     // along the route, fading out with distance from it.
