@@ -37,6 +37,14 @@ describe('terrain and route', () => {
     expect(route.altitudeAt(L.c4.s)).toBeLessThan(8000);
   });
 
+  it('the upper route has no kinks or switchbacks', () => {
+    for (let s = layout.landmarks.c4.s; s < route.length - 15; s += 5) {
+      const a = route.tangentAt(s - 10), b = route.tangentAt(s + 10);
+      const turn = Math.acos(Math.min(1, a.x * b.x + a.z * b.z));
+      expect(20 / Math.max(1e-3, turn)).toBeGreaterThan(30);
+    }
+  });
+
   it('the summit ridge has the real profile: South Summit, notch, Hillary Step, knife edge', () => {
     const L = layout.landmarks;
     const ss = route.altitudeAt(L.southSummit.s);

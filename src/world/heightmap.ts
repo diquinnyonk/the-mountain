@@ -141,17 +141,53 @@ export class Terrain {
       }
       offs[k] = best;
     }
-    // Smooth the offsets along the route and fade them in from the Balcony.
-    const out = src.map((p) => [p[0], p[1]] as [number, number]);
+    // Rate-limit the offsets (they jump between neighbouring bumps), then smooth them.
+    for (let pass = 0; pass < 2; pass++) {
+      for (let k = 2; k < n - 1; k++) offs[k] = Math.max(offs[k - 1] - 4, Math.min(offs[k - 1] + 4, offs[k]));
+      for (let k = n - 3; k >= 1; k--) offs[k] = Math.max(offs[k + 1] - 4, Math.min(offs[k + 1] + 4, offs[k]));
+    }
+    const sm = new Float32Array(n);
     for (let k = 1; k < n - 1; k++) {
       let sum = 0, c = 0;
-      for (let j = Math.max(1, k - 6); j <= Math.min(n - 2, k + 6); j++) { sum += offs[j]; c++; }
-      const fade = (1 - smoothstep(Terrain.RIDGE_LENGTH - 100, Terrain.RIDGE_LENGTH + 80, dEnd[k])) * smoothstep(2, 40, dEnd[k]);
-      const o = (sum / c) * fade;
+      for (let j = Math.max(1, k - 10); j <= Math.min(n - 2, k + 10); j++) { sum += offs[j]; c++; }
+      sm[k] = sum / c;
+    }
+    const out = src.map((p) => [p[0], p[1]] as [number, number]);
+    let first = n;
+    for (let k = 1; k < n - 1; k++) {
+      const fade = (1 - smoothstep(Terrain.RIDGE_LENGTH - 100, Terrain.RIDGE_LENGTH + 80, dEnd[k])) * smoothstep(2, 60, dEnd[k]);
+      if (fade > 0 && k < first) first = k;
+      const o = sm[k] * fade;
       const tx = src[k + 1][0] - src[k - 1][0], tz = src[k + 1][1] - src[k - 1][1];
       const tl = Math.hypot(tx, tz) || 1;
       out[k] = [src[k][0] - (tz / tl) * o, src[k][1] + (tx / tl) * o];
     }
+    // Smooth the shifted tail as a curve (ends fixed), then re-space it evenly so nothing doubles back.
+    const t0 = Math.max(1, first - 5);
+    for (let pass = 0; pass < 12; pass++) {
+      const prev = out.map((p) => [p[0], p[1]]);
+      for (let k = t0; k < n - 1; k++) {
+        out[k] = [(prev[k - 1][0] + 2 * prev[k][0] + prev[k + 1][0]) / 4, (prev[k - 1][1] + 2 * prev[k][1] + prev[k + 1][1]) / 4];
+      }
+    }
+    const tail = out.slice(t0);
+    const spaced: [number, number][] = [tail[0]];
+    let carry = 0;
+    for (let k = 1; k < tail.length; k++) {
+      const [ax, az] = tail[k - 1], [bx, bz] = tail[k];
+      const len = Math.hypot(bx - ax, bz - az);
+      let d = 10 - carry;
+      while (d <= len) {
+        spaced.push([ax + ((bx - ax) * d) / len, az + ((bz - az) * d) / len]);
+        d += 10;
+      }
+      carry = len - (d - 10);
+    }
+    const last = tail[tail.length - 1];
+    if (Math.hypot(spaced[spaced.length - 1][0] - last[0], spaced[spaced.length - 1][1] - last[1]) > 2) spaced.push(last);
+    else spaced[spaced.length - 1] = last;
+    out.length = t0;
+    out.push(...spaced);
     this.route.points = out;
   }
 

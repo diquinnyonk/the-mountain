@@ -78,7 +78,7 @@ export class SkySystem {
     this.daylight = day;
     const cloud = clamp(w.cloudAtAltitude, 0, 1);
     const storm = clamp(w.stormLevel, 0, 1);
-    const dim = 1 - 0.75 * Math.max(smoothstep(0.3, 1, cloud) * 0.8, storm);
+    const dim = 1 - 0.75 * Math.max(smoothstep(0.3, 1, cloud) * 0.8, storm, smoothstep(0.05, 1.2, w.snowfallCmH) * 0.7);
 
     // Moonlight keeps nights navigable but dark; a headlamp does the rest.
     this.sun.intensity = lerp(0.06, 3.2, day) * dim;
@@ -92,7 +92,9 @@ export class SkySystem {
     (this.stars.material as THREE.PointsMaterial).opacity = (1 - smoothstep(-12, -2, elevation)) * (1 - cloud);
     const oc = this.overcast.material as THREE.MeshBasicMaterial;
     // Scattered cloud leaves the sky clear between clouds; only a real overcast greys it all.
-    oc.opacity = clamp(Math.max(smoothstep(0.4, 1, cloud) * 0.9, storm), 0, 0.97);
+    // Falling snow means cloud overhead: grey the sky with it, so a snowy horizon isn't blue sky over a white void.
+    const snowing = smoothstep(0.05, 1.2, w.snowfallCmH);
+    oc.opacity = clamp(Math.max(smoothstep(0.4, 1, cloud) * 0.9, storm, snowing * 0.92), 0, 0.97);
     oc.color.setHSL(0.6, 0.05, lerp(0.04, 0.72, day) * (1 - storm * 0.3));
 
     // A sea of cloud below when the lower levels are overcast and we are above them.

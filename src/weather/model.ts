@@ -178,7 +178,8 @@ export function estimateVisibility(cloud: number, snowCmH: number, windKmh: numb
   // Inside cloud.
   if (cloud > 0.4) vis = Math.min(vis, lerp(20000, 120, smoothstep(0.4, 1, cloud) * smoothstep(60, 95, humidity + 20)));
   // Falling snow.
-  if (snowCmH > 0.02) vis = Math.min(vis, 1200 / (0.4 + snowCmH * 4));
+  // Roughly: light snow (0.1 cm/h) ~5 km, moderate (1 cm/h) ~700 m, heavy (3 cm/h) ~250 m.
+  if (snowCmH > 0.02) vis = Math.min(vis, 2500 / (0.2 + snowCmH * 3.4));
   // Blowing snow / spindrift: a near-surface layer that only blots out the view in strong winds.
   if (windKmh > 55) vis = Math.min(vis, 20000 * Math.exp(-(windKmh - 55) / 16));
   return Math.max(15, vis);

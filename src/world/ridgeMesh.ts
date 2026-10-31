@@ -66,7 +66,19 @@ export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayo
       t.copy(lastT);
       p.copy(top).addScaledVector(lastT, s - route.length);
     }
-    for (const lat of lats) {
+    // On the inside of a bend, narrow the strip so neighbouring cross-sections can't cross.
+    let innerMax = Infinity, innerSign = 0;
+    if (s > s0 + 12 && s < route.length - 12) {
+      const a = route.tangentAt(s - 10), b2 = route.tangentAt(s + 10);
+      const ang = Math.acos(Math.min(1, a.x * b2.x + a.z * b2.z));
+      if (ang > 1e-3) {
+        innerMax = 0.7 * (20 / ang);
+        // Turning toward +lateral (right) puts the inside on the right.
+        innerSign = a.x * b2.z - a.z * b2.x > 0 ? 1 : -1;
+      }
+    }
+    for (const lat0 of lats) {
+      const lat = Math.sign(lat0) === innerSign && Math.abs(lat0) > innerMax ? innerSign * innerMax : lat0;
       const x = p.x - t.z * lat, z = p.z + t.x * lat;
       put(x, z, terrain.heightAt(x, z));
     }
