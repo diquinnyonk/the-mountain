@@ -3,3 +3,4 @@ dist
 .tile-cache
 tests/screenshots
 *.log
+.taste-skill/
