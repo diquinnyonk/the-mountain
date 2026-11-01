@@ -13,7 +13,8 @@
     "smoke": "node tests/smoke.mjs",
     "video": "node tools/record-video.mjs",
     "bake": "tsx tools/bake-terrain.ts",
-    "build:artifact": "npm run build && tsx tools/build-artifact.ts"
+    "build:artifact": "npm run build && tsx tools/build-artifact.ts",
+    "build:site": "node tools/build-site.mjs"
   },
   "dependencies": {
     "three": "0.170.0"

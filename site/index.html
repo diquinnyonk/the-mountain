@@ -6,6 +6,13 @@
 <title>The Mountain</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Climb Everest from Base Camp to the summit in your browser, on the real mountain, in the real weather of any day since 1940.">
+<link rel="canonical" href="https://climb-the-mountain.netlify.app/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://climb-the-mountain.netlify.app/">
+<meta property="og:title" content="The Mountain">
+<meta property="og:description" content="Climb Everest from Base Camp to the summit in your browser, on the real mountain, in the real weather of any day since 1940.">
+<meta property="og:image" content="https://climb-the-mountain.netlify.app/media/summit-flags.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -230,7 +237,7 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
         <div class="lede">
           <p>Climb Everest from Base Camp to the summit, on the real mountain, in the real weather of any day since 1940.</p>
           <div class="act">
-            <a class="btn" href="https://claude.ai/artifact/S4M88tYCZoSQ6w8p7wk188" target="_blank" rel="noopener">Play in your browser
+            <a class="btn" href="/play/">Play in your browser
               <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 14 14 4M6 4h8v8" fill="none" stroke="currentColor" stroke-width="2"/></svg></a>
             <a class="link" href="#trailer">Watch the trailer</a>
           </div>
@@ -266,7 +273,7 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
         <p class="desc rise" id="start-desc">08:00 on the top with half a cylinder left. Most deaths on Everest happen on the way down. Get to the South Col alive.</p>
       </div>
       <div class="cells">
-        <a href="https://claude.ai/artifact/S4M88tYCZoSQ6w8p7wk188" target="_blank" rel="noopener">Play now</a>
+        <a href="/play/">Play now</a>
         <a href="#trailer">Watch the trailer</a>
       </div>
     </div>
@@ -372,7 +379,7 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
     <p class="small">Every picture on this page is the game, rendered in a browser.</p>
   </section>
 
-  <a class="band" href="https://claude.ai/artifact/S4M88tYCZoSQ6w8p7wk188" target="_blank" rel="noopener">
+  <a class="band" href="/play/">
     <span class="next">Opens the game in a new tab. Free, on your desktop or your phone.</span>
     <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 38 38 10M16 10h22v22" fill="none" stroke="currentColor" stroke-width="3.5"/></svg>
     <span class="word">Climb</span>
@@ -381,7 +388,7 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
 
 <footer class="wrap">
   <div class="fcols">
-    <div><b>Play</b><a href="https://claude.ai/artifact/S4M88tYCZoSQ6w8p7wk188" target="_blank" rel="noopener">Open the game</a><span>Desktop and phone</span><span>Free in your browser</span></div>
+    <div><b>Play</b><a href="/play/">Open the game</a><span>Desktop and phone</span><span>Free in your browser</span></div>
     <div><b>Built on real data</b><span>Terrain: AWS Terrain Tiles</span><span>Weather: Open-Meteo</span><span>Physiology from field studies</span></div>
     <div><b>Supported by</b><a href="https://ratemarketing.co.uk" target="_blank" rel="noopener">ratemarketing.co.uk</a></div>
     <div><b>Controls</b><span>WASD or the joystick to walk</span><span>E to clip in, Space to self-arrest</span><span>M for the map</span></div>
@@ -395,9 +402,6 @@ footer { background: var(--ink); color: var(--bg); min-height: 100svh; display: 
 
 <script>
 (() => {
-  const GAME = 'https://claude.ai/artifact/S4M88tYCZoSQ6w8p7wk188';
-  void GAME;
-
   // Entrances: each section's parts rise in turn as it arrives.
   const rises = document.querySelectorAll('.rise');
   if ('IntersectionObserver' in window) {
