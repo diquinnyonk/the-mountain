@@ -1,4 +1,6 @@
-// Records a portrait (1080x1920, 30 fps) gameplay trailer for social media.
+// Records a gameplay trailer for social media at 30 fps.
+// VIDEO_FORMAT=portrait (1080x1920, default) | square (1080x1080) | landscape (1920x1080).
+// VIDEO_CUT=short makes a 15 second cut instead of the full trailer.
 // The game is stepped frame by frame with a fixed timestep, so it works even
 // under slow software rendering. Needs a production build served by `vite preview`.
 // Usage: npm run build && npx vite preview --port 4173 & node tools/record-video.mjs out.mp4 [baseUrl]
@@ -13,12 +15,26 @@ const OUT = process.argv[2] ?? 'the-mountain-trailer.mp4';
 const BASE = process.argv[3] ?? 'http://localhost:4173/';
 const FPS = 30;
 const SCALE = Number(process.env.VIDEO_SCALE ?? 1);
+const FORMAT = process.env.VIDEO_FORMAT ?? 'portrait';
+const SHORT = process.env.VIDEO_CUT === 'short';
+const SIZES = {
+  portrait: { view: [540, 960], dsf: 2, out: [1080, 1920] },
+  square: { view: [720, 720], dsf: 1.5, out: [1080, 1080] },
+  landscape: { view: [960, 540], dsf: 2, out: [1920, 1080] },
+};
+const SIZE = SIZES[FORMAT];
+if (!SIZE) throw new Error(`Unknown VIDEO_FORMAT ${FORMAT}`);
+// Seconds per shot: [full trailer, short cut]. A zero skips the shot.
+const SECS = {
+  title: [3, 1], icefall: [5, 2.5], ladder: [4, 2], cwm: [4, 0], lhotse: [4, 2], sunrise: [6, 3], summit: [5, 2], end: [3.5, 2.5],
+};
+const sec = (k) => SECS[k][SHORT ? 1 : 0] * FPS;
 const FRAMES = join(dirname(OUT), 'frames');
 rmSync(FRAMES, { recursive: true, force: true });
 mkdirSync(FRAMES, { recursive: true });
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const ctx = await browser.newContext({ viewport: { width: 540, height: 960 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const ctx = await browser.newContext({ viewport: { width: SIZE.view[0], height: SIZE.view[1] }, deviceScaleFactor: SIZE.dsf, hasTouch: FORMAT !== 'landscape', isMobile: FORMAT !== 'landscape' });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.error('pageerror', e.message));
 await page.route(/open-meteo\.com/, (r) => r.abort());
@@ -39,10 +55,11 @@ await page.evaluate(() => {
 
 let frame = 0;
 const shoot = async (n, hook = 'null') => {
+  if (n <= 0) return;
   n = Math.max(1, Math.round(n * SCALE));
   for (let i = 0; i < n; i++) {
     await page.evaluate(`window.__step(${hook})`);
-    await page.screenshot({ path: join(FRAMES, `${String(frame++).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 90 });
+    await page.screenshot({ path: join(FRAMES, `${String(frame++).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 90, timeout: 180000 });
   }
   console.log(`frame ${frame}`);
 };
@@ -53,7 +70,7 @@ const warm = (n = 8) => page.evaluate((n) => {
 }, n);
 
 // 1. Title screen.
-await shoot(3 * FPS);
+await shoot(sec('title'));
 
 // Start an expedition and set the scene: clear skies, invulnerable, Pemba with us.
 await page.evaluate(() => document.getElementById('btn-new').click());
@@ -116,22 +133,24 @@ const L = await page.evaluate(() => {
 // 2. The Khumbu Icefall, Pemba leading.
 await page.evaluate((s) => window.__place(s, 0, 8.5, { pitch: 0.22, dist: 6.5 }), L.c1 - 900);
 await warm();
-await shoot(5 * FPS, 'window.__walk');
+await shoot(sec('icefall'), 'window.__walk');
 
 // 3. A ladder over a crevasse.
 await page.evaluate((s) => window.__place(s - 7, 0, 9, { pitch: 0.45, dist: 5, yaw: 0.5 }), L.ladder);
 await warm();
-await shoot(4 * FPS, 'window.__walk');
+await shoot(sec('ladder'), 'window.__walk');
 
 // 4. The Western Cwm with the Lhotse Face ahead.
-await page.evaluate((s) => window.__place(s, 0, 10, { pitch: 0.12, dist: 9 }), L.c1 + 1200);
-await warm();
-await shoot(4 * FPS, 'window.__walk');
+if (sec('cwm') > 0) {
+  await page.evaluate((s) => window.__place(s, 0, 10, { pitch: 0.12, dist: 9 }), L.c1 + 1200);
+  await warm();
+}
+await shoot(sec('cwm'), 'window.__walk');
 
 // 5. Jumaring the Lhotse Face on the fixed line.
 await page.evaluate((s) => window.__place(s, 0.7, 10.5, { clipped: true, pitch: 0.35, dist: 6, yaw: 0.6 }), L.c2 + 900);
 await warm();
-await shoot(4 * FPS, 'window.__walk');
+await shoot(sec('lhotse'), 'window.__walk');
 
 // 6. The summit ridge at sunrise (alpenglow).
 await page.evaluate((s) => {
@@ -143,7 +162,7 @@ await page.evaluate((s) => {
   e.clock.time = t;
 }, L.ss + 25);
 await warm();
-await shoot(6 * FPS, `() => { window.__walk(); window.game.exp.clock.time -= 1000 * 3; }`);
+await shoot(sec('sunrise'), `() => { window.__walk(); window.game.exp.clock.time -= 1000 * 3; }`);
 
 // 7. On the summit: orbit around the climber.
 await page.evaluate((len) => {
@@ -160,22 +179,24 @@ await page.evaluate((len) => {
   window.__still = () => { g.input.moveY = 0; const k = document.querySelector('#touch .knob'); if (k) k.style.transform = ''; };
 }, L.len);
 await warm();
-await shoot(5 * FPS, 'window.__still');
+await shoot(sec('summit'), 'window.__still');
 
 // 8. End card.
 await page.evaluate(() => {
+  document.getElementById('hud-alert').style.display = 'none';
   const card = document.createElement('div');
   card.style.cssText = 'position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(ellipse at center, rgba(8,12,20,0.55), rgba(8,12,20,0.92));font-family:system-ui,sans-serif;color:#eef2f7;text-align:center;padding:24px';
   card.innerHTML = `<div><div style="letter-spacing:.16em;color:#ff8a2a;font-weight:600;font-size:13px">EVEREST · SOUTH COL ROUTE</div>
     <div style="font-size:52px;font-weight:750;margin:8px 0 10px">The Mountain</div>
     <div style="font-size:17px;color:#cfd7e2;max-width:400px;margin:0 auto">Real terrain. Real weather. Altitude sickness, storms and the death zone.<br>Can you climb Everest and get back down?</div>
-    <div style="margin-top:34px;font-size:14px;color:#9aa6b6">Supported by <span style="color:#ff8a2a;font-weight:600">ratemarketing.co.uk</span></div></div>`;
+    <div style="margin:28px auto 0;display:inline-block;background:#ff8a2a;color:#14181f;font-weight:700;font-size:19px;padding:12px 20px;border-radius:8px">Play free: climb-the-mountain.netlify.app</div>
+    <div style="margin-top:26px;font-size:14px;color:#9aa6b6">Supported by <span style="color:#ff8a2a;font-weight:600">ratemarketing.co.uk</span></div></div>`;
   document.body.appendChild(card);
 });
-await shoot(3.5 * FPS, 'window.__still');
+await shoot(sec('end'), 'window.__still');
 
 await browser.close();
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', join(FRAMES, '%05d.jpg'),
-  '-vf', 'scale=1080:1920:flags=lanczos', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-pix_fmt', 'yuv420p',
+  '-vf', `scale=${SIZE.out[0]}:${SIZE.out[1]}:flags=lanczos`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-pix_fmt', 'yuv420p',
   '-movflags', '+faststart', OUT]);
 console.log(`Wrote ${OUT}`);
