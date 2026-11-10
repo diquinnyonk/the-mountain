@@ -1,0 +1,20 @@
+<!doctype html><body style="margin:0"><script type="module">
+<!-- Dev-only close-up of the climber model. With `npm run dev` open /tools/climber-look.html (?poses=walk,sit,jumar,lie&yaws=...&speeds=...&dist=...). -->
+import * as THREE from 'three';
+import { ClimberModel } from '/src/world/climberModel.ts';
+const W = 1500, H = 600;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); document.body.appendChild(r.domElement);
+r.shadowMap.enabled = true; r.toneMapping = THREE.ACESFilmicToneMapping;
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x9fb3c8);
+sc.add(new THREE.HemisphereLight(0xdfe8f5, 0x8a8f99, 1.2)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(3, 5, 4); sun.castShadow = true; sun.shadow.camera.left = -5; sun.shadow.camera.right = 5; sc.add(sun);
+const g = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0xeef2f6 })); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; sc.add(g);
+const q = new URLSearchParams(location.search);
+const poses = (q.get('poses') || 'walk,walk,walk,walk').split(',');
+const yaws = (q.get('yaws') || '0,1.5708,2.5,0.6').split(',').map(Number);
+const speeds = (q.get('speeds') || '0.9,0.9,0.9,0').split(',').map(Number);
+const looks = [{ suit: 0xd0202a, pack: 0x1d2a44, helmet: 0xeeeeee }, { suit: 0xffb300, pack: 0x5d4037, helmet: 0xff5722 }, { suit: 0x3949ab, pack: 0x333333, helmet: 0xeeeeee }, { suit: 0xeeeeee, pack: 0xc62828, helmet: 0xc62828 }];
+const lk = q.get('same') ? poses.map(() => looks[0]) : looks;
+poses.forEach((pose, i) => { const m = new ClimberModel(lk[i % 4]); m.setGround(() => 0); m.root.position.set((i - (poses.length - 1) / 2) * 1.5, 0, 0); m.root.rotation.y = yaws[i]; m.setOxygen(true); sc.add(m.root); for (let k = 0; k < 47; k++) m.animate(1 / 30, speeds[i], 0, pose, 0.3); });
+const cam = new THREE.PerspectiveCamera(Number(q.get('fov') || 30), W / H, 0.1, 50); cam.position.set(0, 1.15, Number(q.get('dist') || 7.5)); cam.lookAt(0, 0.95, 0);
+r.render(sc, cam); window.done = true;
+</script></body>
