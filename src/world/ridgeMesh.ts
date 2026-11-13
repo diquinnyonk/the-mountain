@@ -19,7 +19,13 @@ const LATS = [0, 0.45, 0.9, 1.4, 2, 2.8, 3.6, 4.5, 5.5, 6.7, 8, 9.5, 11, 13, 15,
 export function buildRidgeMesh(terrain: Terrain, route: Route, layout: RouteLayout, material: THREE.Material): THREE.Mesh {
   const lats = [...LATS.slice(1).reverse().map((l) => -l), ...LATS];
   const cols = lats.length;
-  const s0 = Math.max(layout.landmarks.balcony.s - 80, route.length - Terrain.RIDGE_LENGTH);
+  // Start below the point where the coarse terrain begins to sink (the sink is measured in
+  // horizontal metres from the summit, which runs further down the route than RIDGE_LENGTH
+  // of route distance), or the sunk terrain shows as an open trench across the trail.
+  let s0 = Math.min(layout.landmarks.balcony.s - 80, route.length - Terrain.RIDGE_LENGTH);
+  const q = new THREE.Vector3();
+  while (s0 > 0 && terrain.renderSink(route.pointAt(s0, q).x, q.z) > 0) s0 -= 4;
+  s0 = Math.max(0, s0 - 12);
   const end = route.length + RIDGE_STRIP_PAST;
   const rows: number[] = [];
   for (let s = s0; s < end; s += 1) rows.push(s);

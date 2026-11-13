@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { Terrain } from '../src/world/heightmap';
@@ -92,5 +93,20 @@ describe('summit ridge mesh', () => {
       const cx = (pos[c[0]] + pos[c[1]] + pos[c[2]]) / 3, cy = (pos[c[0] + 1] + pos[c[1] + 1] + pos[c[2] + 1]) / 3, cz = (pos[c[0] + 2] + pos[c[1] + 2] + pos[c[2] + 2]) / 3;
       expect(cy - terrain.heightAt(cx, cz)).toBeLessThan(0.7);
     }
+  });
+  it('the ground has no steps or holes where the summit ridge begins', () => {
+    // A hole 10 m deep once opened where the ridge sculpt took over from the DEM.
+    const p = new THREE.Vector3(), t = new THREE.Vector3();
+    let worst = 0, at = '';
+    for (let s = layout.landmarks.c4.s; s < route.length - 2; s += 0.5) {
+      route.pointAt(s, p);
+      route.tangentAt(s, t);
+      for (const lat of [-4, -2, 0, 2, 4]) {
+        const x = p.x - t.z * lat, z = p.z + t.x * lat;
+        const jump = Math.abs(terrain.heightAt(x + t.x * 0.5, z + t.z * 0.5) - terrain.heightAt(x, z));
+        if (jump > worst) { worst = jump; at = `s=${s} lat=${lat}`; }
+      }
+    }
+    expect(worst, at).toBeLessThan(2.5);
   });
 });

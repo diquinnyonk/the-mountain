@@ -228,7 +228,9 @@ export class Terrain {
     const raw = new Float32Array(n);
     for (let k = 0; k < n; k++) raw[k] = this.demAt(pts[k][0], pts[k][1]);
     this.crest = new Float32Array(n);
-    for (let k = start; k < n; k++) {
+    // From one point below the start too: a position projected onto the segment that enters
+    // the ridge interpolates from that point's crest, and a crest of 0 there cut a hole.
+    for (let k = Math.max(0, start - 1); k < n; k++) {
       let sum = 0, c = 0;
       for (let j = Math.max(0, k - 3); j <= Math.min(n - 1, k + 3); j++) { sum += raw[j]; c++; }
       const smooth = sum / c;
